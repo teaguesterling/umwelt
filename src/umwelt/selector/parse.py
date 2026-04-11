@@ -130,6 +130,7 @@ def _parse_complex(
         return None
 
     parts: list[CompoundPart] = []
+    previous_taxon: str | None = None
     for idx, (combinator, part_tokens) in enumerate(parts_raw):
         simple = _parse_simple(part_tokens, source_path, scope_taxon=scope_taxon)
         if simple is None:
@@ -139,16 +140,28 @@ def _parse_complex(
                 col=1,
                 source_path=source_path,
             )
-        # First part always has combinator "root" regardless of what we
-        # recorded (we seeded with "root" and never rewrite it).
-        combinator_kind = "root" if idx == 0 else combinator
+        if idx == 0:
+            mode: str = "root"
+            combinator_kind: str = "root"
+        else:
+            combinator_kind = combinator
+            # Classify: structural if same taxon or either side is universal.
+            if (
+                previous_taxon == simple.taxon
+                or previous_taxon == "*"
+                or simple.taxon == "*"
+            ):
+                mode = "structural"
+            else:
+                mode = "context"
         parts.append(
             CompoundPart(
                 selector=simple,
                 combinator=combinator_kind,  # type: ignore[arg-type]
-                mode="root" if idx == 0 else "structural",
+                mode=mode,  # type: ignore[arg-type]
             )
         )
+        previous_taxon = simple.taxon
 
     target_taxon = parts[-1].selector.taxon
     if target_taxon == "*":
