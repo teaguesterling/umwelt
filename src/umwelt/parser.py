@@ -98,12 +98,14 @@ def _span(node: Any) -> SourceSpan:
 
 
 def _build_rule_block(
-    node: Any, warnings: list[ParseWarning], source_path: Path | None = None
+    node: Any,
+    warnings: list[ParseWarning],
+    source_path: Path | None = None,
 ) -> RuleBlock | None:
     prelude = list(getattr(node, "prelude", []) or [])
     content = list(getattr(node, "content", []) or [])
     selectors = parse_selector_list(prelude, source_path=source_path)
-    declarations = _parse_declarations(content, source_path)
+    declarations = _parse_declarations(content, source_path, warnings)
     return RuleBlock(
         selectors=selectors,
         declarations=declarations,
@@ -113,7 +115,9 @@ def _build_rule_block(
 
 
 def _parse_declarations(
-    content: list[Any], source_path: Path | None
+    content: list[Any],
+    source_path: Path | None,
+    warnings: list[ParseWarning],
 ) -> tuple[Declaration, ...]:
     """Parse the content of a qualified-rule block into Declaration tuples."""
     if not content:
@@ -122,6 +126,7 @@ def _parse_declarations(
         content, skip_comments=True, skip_whitespace=True
     )
     out: list[Declaration] = []
+    seen: dict[str, SourceSpan] = {}
     for node in decl_nodes:
         if _is_parse_error(node):
             raise _parse_error_to_view_error(node, source_path)
@@ -134,11 +139,21 @@ def _parse_declarations(
         values = _split_declaration_values(
             list(getattr(node, "value", []) or [])
         )
+        span = _span(node)
+        if name in seen:
+            warnings.append(
+                ParseWarning(
+                    message=f"duplicate declaration key {name!r}",
+                    span=span,
+                )
+            )
+        else:
+            seen[name] = span
         out.append(
             Declaration(
                 property_name=name,
                 values=tuple(values),
-                span=_span(node),
+                span=span,
             )
         )
     return tuple(out)
