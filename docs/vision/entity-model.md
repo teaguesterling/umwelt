@@ -241,7 +241,100 @@ dir[name="src"] dir[name="auth"] file[name$=".py"] { editable: true; }
 
 This is identical in match semantics to `file[path^="src/auth/"][path$=".py"]`, but makes the structural walk explicit. Authors can choose either form; the engine resolves both to the same set.
 
-### 4.3 Declarations with comparison semantics
+### 4.3 Compound selectors: within-taxon structure and cross-taxon context
+
+The descendant combinator has two meanings in umwelt, distinguished by whether the two sides belong to the same taxon.
+
+**Within a taxon:** the combinator is CSS-standard structural descent via the parent-child relationships the plugin declares. `dir[name="src"] file[name$=".py"]` reads as "a `.py` file descended from a `dir` named `src`," navigating the filesystem hierarchy the `world` taxon exposes. `file[path^="src/auth/"] node[kind="function"]` reads as "a function node inside a file in `src/auth/`," navigating the file→node hierarchy.
+
+**Across taxa:** the combinator is a **context qualifier**. When the entities on either side belong to different taxa, there is no structural descent to walk — the taxa are peers, not nested. Instead, the left selector conditions *when* the rule applies, and the rightmost selector is the **target** the declaration attaches to.
+
+```
+tool[name="Bash"] file[path^="src/auth/"] { editable: false; }
+```
+
+reads as: "when the acting tool is Bash, files in `src/auth/` are not editable." The `tool[name="Bash"]` part does not match "files that are tools" (nonsensical); it qualifies the context in which the rule fires.
+
+**Three-level form** composes cross-taxon context with within-taxon structural descent:
+
+```
+tool[name="Bash"] file[path^="src/auth/"] node[kind="function"][name="protected"] {
+  editable: false;
+}
+```
+
+"When Bash is the acting tool, the `protected` function inside files in `src/auth/` is not editable." The first combinator (`tool → file`) is cross-taxon context qualification; the second combinator (`file → node`) is within-taxon structural descent using the `world` taxon's declared file→node parent-child relationship.
+
+**How the parser distinguishes the two modes.** At parse time, the parser looks up each simple selector's entity type in the registry and resolves the owning taxon. When both sides of a combinator resolve to the same taxon, the combinator is structural; when they resolve to different taxa, the combinator is contextual. Authors do not annotate which mode they mean — the taxonomy determines it automatically. Registry-driven disambiguation is the same mechanism that handles default taxon resolution (§4.5).
+
+**What context qualifiers can express.** Any entity the registry knows about can appear as a context qualifier, not just `tool`. Examples:
+
+```
+actor#delegate file[path^="secrets/"] { visible: false; }
+          /* delegate actors cannot see files in secrets/ */
+
+job[delegate="true"] resource[kind="memory"] { max-limit: 256MB; }
+          /* sub-delegate jobs have a tighter memory cap than the parent */
+
+hook[event="before-call"] tool[name="Bash"] { allow-pattern: "git *", "pytest *"; }
+          /* before-call hooks on Bash restrict commands to git / pytest */
+```
+
+The pattern is always the same: left selector conditions the rule, rightmost selector is the cascade target.
+
+**Compiler altitude and unrealized rules.** Not every compiler can express every context qualifier. The nsjail compiler emits filesystem bind mounts and can realize `file[path^="src/auth/"] { editable: false; }` as `rw: false`, but it has no way to express "when Bash is the acting tool" — nsjail operates at the OS altitude where "acting tool" is not a concept. Rules whose context qualifier is outside the target compiler's altitude are **silently dropped** by that compiler, not treated as errors. The same rule can be realized by another compiler at a different altitude (e.g., `kibitzer-hooks` can express tool-conditioned policy at the semantic altitude). The `dry-run` and `inspect` utilities surface per-target which rules were dropped and which were realized, so authors can see at a glance whether their view is being honored at each altitude.
+
+This is the intended composition model: one view, multiple compilers, each realizing what its target can enforce. A rule that no compiler can realize is still a valid view (it documents intent), but the `check` utility flags it as declarative-only so the author knows.
+
+### 4.4 Pattern-valued declarations for runtime matching
+
+Static-attribute selectors (`[name="Bash"]`, `[path^="src/"]`) are the v1 selector grammar. They operate on the parsed AST and are evaluated during compilation or hook dispatch. They do not reach into runtime state — tool arguments, call-site context, invocation metadata.
+
+Runtime concerns go into **declaration-level patterns** rather than selector extensions. The pattern is attached to a property, not to a selector, and is evaluated by whatever component realizes the property at runtime.
+
+```
+tool[name="Bash"] {
+  allow-pattern: "git *", "pytest *", "black *", "ruff *";
+  deny-pattern:  "rm -rf *", "curl *", "ssh *", "sudo *";
+}
+```
+
+Read: "Bash is allowed, but only when the invocation matches one of the allow patterns; additionally deny when any of the deny patterns match." The compiler for the claude-plugins hook target (or kibitzer-hooks, or whatever semantic-altitude consumer realizes the property) translates these patterns into its own runtime matching machinery.
+
+**Why declaration-level, not selector-level.** Keeping runtime matching out of selectors preserves three properties:
+
+1. **Decidable selector evaluation.** The parser and engine only evaluate structural and attribute-equality predicates. Runtime state never enters the selector layer.
+2. **Compiler-target portability.** Static selectors compile cleanly to every target (nsjail textproto, bwrap argv, lackpy dict, kibitzer rules). Dynamic selectors would force every compiler to emit runtime-evaluation machinery, and some targets (nsjail) cannot express it at all.
+3. **Clean split between static view analysis and runtime enforcement.** Analysis tools (`inspect`, `dry-run`, `diff`, `ratchet`) reason about selectors; enforcement tools reason about patterns. Each stays in its own concern.
+
+**Pattern-comparison as a new comparison category.** The existing comparison prefixes (`max-`, `min-`, `only-`, `any-of-`) each bake a specific comparison into the property name. Pattern properties are registered as another category:
+
+| Property prefix | Comparison | Example |
+|---|---|---|
+| `allow-pattern` | glob membership (any pattern matches → allow) | `allow-pattern: "git *", "pytest *"` |
+| `deny-pattern` | glob membership (any pattern matches → deny) | `deny-pattern: "rm -rf *", "curl *"` |
+| `only-match` | all invocations must match one pattern in the set | `only-match: "*.json"` |
+
+Glob semantics are `fnmatch`-style for the v1 baseline (shell-glob with `*`, `?`, `[...]`). Plugins can register their own pattern properties with different semantics (e.g., `path-prefix`, `regex`) but v1 ships only the shell-glob forms.
+
+Pattern properties are registered the same way as other properties:
+
+```python
+register_property(
+    taxon="capability",
+    entity="tool",
+    name="allow-pattern",
+    value_attribute="invocation_argv",
+    comparison="pattern-in",
+    value_type=list[str],
+    description="Invocations of this tool are allowed only when the argv matches one of the declared glob patterns.",
+    category="runtime_matcher",
+)
+```
+
+Compilers that cannot realize runtime matching drop pattern properties the same way they drop out-of-altitude context qualifiers (see §4.3). The `check` utility reports which pattern properties are honored by which compilers.
+
+### 4.5 Declarations with comparison semantics
 
 This is where umwelt differs from CSS in an important way.
 
@@ -292,13 +385,13 @@ register_property(
 
 The `category` field groups related properties for tooling (the `umwelt inspect` CLI can list "effects_ceiling" properties across all taxa). The `description` is what the governed actor sees in the view-projection compiler (see §8).
 
-### 4.4 Default taxon resolution
+### 4.6 Default taxon resolution
 
 Entity type names are resolved against the plugin registry at parse time. When you write `file { editable: true; }`, the parser looks up `file` across all registered taxa. If exactly one taxon owns an entity type named `file`, that's the match. No taxon prefix, no qualification, no boilerplate. The CSS principle applies: you write `button`, not `html body button`, and the scope is implicit.
 
 Authors should **not** have to prefix with the taxon name under normal conditions. Bare entity types are the primary form. The format is verbose only when the author opts into verbosity for structural emphasis (via descendant combinators) or for disambiguation when multiple taxa own the same type name.
 
-### 4.5 Disambiguation
+### 4.7 Disambiguation
 
 Two disambiguation mechanisms exist for the rare case that the bare form is ambiguous.
 
@@ -347,11 +440,13 @@ The legacy at-rules from the original sandbox vocabulary (`@source`, `@tools`, `
 
 When multiple rules match the same entity, the cascade picks the winner.
 
-### 5.1 Per-taxon cascade
+### 5.1 Per-taxon cascade (scoped by target taxon via registry lookup)
 
 **Cascade is scoped to a single taxon.** A `world` rule and a `capability` rule never compete even if a conceptual overlap exists, because they apply to disjoint entity sets. Rules inside the same taxon cascade against each other using CSS's standard order-of-precedence.
 
-This matters for plugin composition: consumers registering different taxa are guaranteed their rules don't silently override each other. The `world` consumer's `file { editable: false; }` cannot accidentally cascade with the `capability` consumer's `tool { allow: true; }`.
+**How the taxon is determined.** The taxon of a rule is the taxon of its **cascade target** — the rightmost entity in its selector. The parser resolves the target entity type against the registry at parse time and tags the rule with the owning taxon. The scoping is not syntactic (there is no taxon prefix in the selector) but structural (registry lookup on the target). A rule like `tool[name="Bash"] file[path^="src/auth/"] { editable: false; }` is a `file` rule — it lives in the cascade of whichever taxon registered `file` (the `world` taxon for the first-party sandbox vocabulary). The `tool` qualifier contributes specificity but does not affect scope.
+
+This matters for plugin composition: consumers registering different taxa are guaranteed their rules don't silently override each other. The `world` consumer's `file { editable: false; }` cannot accidentally cascade with the `capability` consumer's `tool { allow: true; }`. Registry-based scoping means the guarantee holds even for compound selectors that reference entities from multiple taxa — each rule has exactly one target taxon, set by its rightmost entity, and that's the cascade it participates in.
 
 ### 5.2 Specificity and order
 
@@ -376,7 +471,29 @@ For `src/generated/protobuf_pb2.py`: the first three rules match. Same specifici
 
 For `tests/test_auth.py`: only the first rule matches → read-only.
 
-### 5.3 Property-level cascade
+### 5.3 Cascade with compound selectors
+
+Compound selectors that qualify across taxa (see §4.3) cascade by **target taxon**, with **specificity accumulating across all selectors** in the rule. A compound selector contributes the sum of each simple selector's specificity tuple, computed per the CSS3 rules and added component-wise.
+
+```
+file[path^="src/auth/"]                       { editable: true;  }   /* S(0,1,1) — baseline */
+tool[name="Bash"] file[path^="src/auth/"]     { editable: false; }   /* S(0,2,2) — Bash qualifier */
+tool[name="Edit"] file[path^="src/auth/"]     { editable: true;  }   /* S(0,2,2) — Edit qualifier */
+```
+
+All three rules target `file` (rightmost selector). All three compete in the `world` taxon's cascade.
+
+- **`Edit` invocation on a `src/auth/` file:** rules 1 and 3 apply. Rule 3 has higher specificity (compound selector) and wins → editable. Rule 1 is redundant with the result but documents the baseline.
+- **`Bash` invocation on a `src/auth/` file:** rules 1 and 2 apply. Rule 2 wins on specificity → not editable.
+- **Any other tool (Grep, Read, …) on a `src/auth/` file:** only rule 1 applies (rules 2 and 3 don't match, because their `tool` qualifiers don't match). Result → editable.
+
+**Specificity is computed per-selector and summed.** Each simple selector in the compound contributes `(ids, classes+attrs+pseudos, types)` per CSS3. The totals are summed component-wise to get the compound specificity. Ties are broken by document order, as in plain CSS.
+
+This lets views express fine-grained actor-conditioned policy without duplicating rules: a single `file` cascade can have per-tool overrides and per-actor overrides, all ordered by specificity, all resolved by the standard rules.
+
+**Compilers that can't realize the qualifier drop the rule.** As noted in §4.3, a rule whose context qualifier is outside the target compiler's altitude is silently dropped by that compiler. The cascade is still computed against the full rule set at parse time, and the `dry-run` utility can report which rules made it through each compiler's altitude filter. An `nsjail` compiler seeing the example above keeps only rule 1; a `kibitzer-hooks` compiler sees all three.
+
+### 5.4 Property-level cascade
 
 Properties cascade independently. A rule can set some properties on an entity while another rule sets others:
 
@@ -392,7 +509,7 @@ tool {
 
 For `Bash`: `allow: true` (from the specific rule), `max-level: 2` (from the specific rule, which wins over the default). For all other tools: `max-level: 8` from the default.
 
-### 5.4 Comparison-property cascade
+### 5.5 Comparison-property cascade
 
 Comparison-semantics properties (`max-level`, `max-memory`, etc.) cascade by *value*, not by the comparison itself. The winning rule's declared value is the one applied. If two rules at the same specificity declare different `max-level` values, document order wins. The comparison semantics (`<=`) is property-level and does not interact with the cascade — it's applied *after* cascade picks the final value.
 
@@ -725,6 +842,9 @@ This is a v1.1 compiler target, flagged here so that plugin authors know to writ
 - `umwelt diff`
 - Cross-taxon validation invariants
 - `observation` entity type in the `state` taxon
+- **`source` / `project` entity** — a logical file-grouping that sits above `dir` in the world hierarchy. Needed for monorepo and multi-package setups where views want to target "files in the auth package" rather than "files matching a path prefix." Open questions before landing: is it a `world` entity or its own taxon, how does it relate to the existing `@source(path)` sugar, where does the `name` come from (path / package metadata / explicit author declaration), how does cascade interact with source groupings. See §15 for the longer treatment.
+- **Invocation-time selectors** — pseudo-class or dedicated at-rule scope for runtime matching beyond what declaration-level pattern properties (§4.4) can express. Candidates: `tool:call[args*="foo"]`, `@on-call tool[name="Bash"] { ... }`, or a separate `@call { ... }` at-rule. Deferred until declaration-level patterns prove insufficient for real use cases.
+- **Cross-taxon structural pseudo-classes** — `hook:triggered-by(tool[name="Bash"])`, `job:owned-by(actor#delegate)`, `file:produced-by(tool[name="Write"])`. These express **declared** structural relationships between entities from different taxa, distinct from the context-qualifier semantics in §4.3. Context qualifiers say "when X is active"; structural pseudo-classes say "entities standing in this relationship to X." Requires a `register_relationship` API and per-matcher navigation support, which is more infrastructure than v1 takes on. v1 uses context qualifiers for the cases where they suffice; the structural-relationship cases wait for v1.1+.
 
 ### v2
 
@@ -774,6 +894,10 @@ Recorded so they don't get lost. These are known-unknowns that don't block v1 bu
 6. **Can two different taxa declare the same entity type name in different namespaces?** `file` and `audit file` could both exist. v1: yes, namespaced by taxon. Cascade is per-taxon so no conflict.
 
 7. **Should at-rule sugar support arguments that aren't in the canonical form?** `@source("src/**/*.py" editable=true)` is compact but drifts from CSS. v1: no — sugar must correspond 1:1 to canonical form.
+
+8. **Where does `source` live, and how does the existing `@source(...)` sugar interact with it?** The motivation: monorepos and multi-package projects have logical groupings (packages, repos, workspaces) that don't map cleanly to filesystem path prefixes. A view should be able to say "files in the auth package" or "files belonging to source X" rather than "files whose path starts with `src/auth/`." Proposed form: `source[name="auth"] file[path$=".py"] { ... }`, or even the four-level compound `tool[name="Bash"] source[name="auth"] file[path$=".py"] node#protected { ... }`. Before committing, we need to resolve: (a) is `source` a new entity in `world` or a new taxon, (b) how does it relate to the `@source(path)` at-rule sugar — should `@source("src/auth")` desugar to a `source[name="auth"] file[...]` compound instead of just a path-prefix match, (c) where does the `name` come from (filesystem path, package metadata from `pyproject.toml`/`package.json`, git submodule name, explicit `@source(name="auth", path="src/auth")` declaration), (d) how does cascade handle source groupings — standard specificity or something source-aware, (e) is there need for multi-root views. Deferred to v1.1+; in v1, authors use path-prefix matching on `file` directly, and the gap is real but fillable later without disrupting v1 views.
+
+9. **The `file#name.py.bak` edge case.** The greedy `ident_value` grammar in §4.1 accepts dots and dashes in id values, so `file#README.md` and `file#name.py.bak` parse as id-only selectors. This works for the common filename-id case. The edge case: an author who wants a class *after* an id on a filename-id selector can't write `file#README.md.draft` because the parser reads `README.md.draft` as the full id. v1 decision: defer. If this matters, add an explicit terminator like `file#"README.md".draft` or require quoted id values for dotted filenames. No current use case forces the decision.
 
 ---
 

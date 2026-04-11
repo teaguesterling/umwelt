@@ -351,8 +351,8 @@ The parser is thin glue over `tinycss2`, which handles CSS-3 tokenization (strin
 - Invoke `tinycss2.parse_stylesheet()` on the input text.
 - Walk the token stream, recognizing at-rules and top-level rule blocks.
 - For at-rules with umwelt sugar semantics (`@source`, `@tools`, `@after-change`, `@network`, `@budget`, `@env`), desugar to entity-selector form during parsing (the sugar is syntactic; the AST is canonical).
-- For at-rules that are taxon scopes (`@world { ... }`, `@capability { ... }`), unwrap and prefix the inner selectors with the taxon name.
-- Parse selectors into the internal selector AST (subset of CSS3 + umwelt extensions; see `selector/parse.py`).
+- For at-rules that are taxon scopes (`@world { ... }`, `@capability { ... }`), unwrap the inner selectors into the canonical AST; the containing taxon is recorded as a hint for default resolution inside the block but is not a syntactic prefix on the child selectors.
+- Parse selectors into the internal selector AST (subset of CSS3 + umwelt extensions; see `selector/parse.py`). The parser resolves each entity type name against the registry, tags each simple selector with its owning taxon, and classifies descendant combinators as within-taxon (structural) or cross-taxon (context qualifier) based on the tagged taxa.
 - Parse declarations into `Declaration(property_name, values, span)` entries.
 - Preserve unknown at-rules, unknown entity types, and unknown declarations with warning flags.
 - Raise `ViewParseError` with line/column on syntactic errors.
@@ -379,18 +379,27 @@ Selector AST:
 @dataclass(frozen=True)
 class SimpleSelector:
     type_name: str | None       # "file", "tool", "*", or None
+    taxon: str                  # resolved at parse time from the registry
     id: str | None              # "#README.md"
     classes: tuple[str, ...]    # ".test"
     attributes: tuple[AttrFilter, ...]
     pseudo: tuple[PseudoClass, ...]
 
 @dataclass(frozen=True)
+class CompoundPart:
+    selector: SimpleSelector
+    combinator: Combinator      # descendant, child, adjacent, etc.
+    mode: Literal["structural", "context"]  # set from taxon comparison
+
+@dataclass(frozen=True)
 class ComplexSelector:
-    parts: tuple[tuple[SimpleSelector, Combinator], ...]
-    taxon: str                  # "world", "capability", ...
+    parts: tuple[CompoundPart, ...]
+    target_taxon: str           # taxon of the rightmost simple selector — the cascade target
 ```
 
-The engine translates `ComplexSelector` into match predicates the registered matcher understands. Each taxon's matcher is responsible for walking its own world (filesystem, tool registry, hook schedule, etc.) and returning matched entities.
+Each `SimpleSelector` carries its resolved taxon. For each combinator in the compound, the parser compares the taxa on either side and sets the combinator's `mode`: `"structural"` when both sides share a taxon (walk the plugin's declared parent/child hierarchy), `"context"` when they differ (evaluate as a context qualifier that conditions when the rule fires). The `target_taxon` is the taxon of the rightmost `SimpleSelector` — this is the cascade scope for the rule, regardless of any cross-taxon qualifiers in the compound.
+
+The engine translates `ComplexSelector` into match predicates the registered matcher understands. Each taxon's matcher is responsible for walking its own world (filesystem, tool registry, hook schedule, etc.) and returning matched entities. Cross-taxon qualifiers are evaluated by their target taxon's matcher consulting the qualifier taxon's matcher for the condition — e.g., a rule with a `tool[name="Bash"]` qualifier on a `file` target asks the capability matcher "is Bash the acting tool in the current runtime context?" at match time. Compilers that cannot evaluate the qualifier at their altitude drop the rule, as described in [`entity-model.md`](./entity-model.md) §4.3.
 
 ### Cascade resolver
 

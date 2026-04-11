@@ -204,7 +204,45 @@ audit|file[path^="src/secrets"]   { flag: sensitive; }
 }
 ```
 
-All three forms — bare, `taxon|type`, and at-rule scoping — are interchangeable. Mix freely. Cascade is scoped per taxon — a `world` rule and a `capability` rule never compete even if a conceptual overlap exists, because they apply to disjoint entity sets.
+All three forms — bare, `taxon|type`, and at-rule scoping — are interchangeable. Mix freely. Cascade is scoped per taxon — a `world` rule and a `capability` rule never compete even if a conceptual overlap exists, because they apply to disjoint entity sets. See [`entity-model.md`](./entity-model.md) §5.1 for how the target taxon is resolved from the rightmost entity in compound selectors.
+
+### Compound selectors: within-taxon structure, cross-taxon context
+
+The descendant combinator has two meanings, distinguished by whether the entities on each side share a taxon. The parser resolves taxa via registry lookup at parse time; authors don't annotate the mode.
+
+**Within a taxon** — structural descent via plugin-declared parent/child relationships:
+
+```
+dir[name="src"] file[name$=".py"]                 /* .py files inside a src dir */
+file[path^="src/auth/"] node[kind="function"]    /* functions inside src/auth files */
+```
+
+**Across taxa** — context qualifier. The left selector conditions *when* the rule fires; the rightmost selector is the **target** the declaration attaches to:
+
+```
+tool[name="Bash"] file[path^="src/auth/"] { editable: false; }
+          /* when Bash is the acting tool, auth files are not editable */
+
+actor#delegate file[path^="secrets/"] { visible: false; }
+          /* sub-delegate actors cannot see secrets */
+
+job[delegate="true"] resource[kind="memory"] { max-limit: 256MB; }
+          /* delegated jobs have a tighter memory cap than their parent */
+```
+
+**Three-level compound** — cross-taxon context plus within-taxon structural descent:
+
+```
+tool[name="Bash"] file[path^="src/auth/"] node[kind="function"][name="protected"] {
+  editable: false;
+}
+```
+
+Reads: "when Bash is the acting tool, the `protected` function inside files in `src/auth/` is not editable." The first combinator (`tool → file`) is cross-taxon context; the second combinator (`file → node`) is within-taxon structural descent.
+
+**Cascade with compound selectors.** The rule's cascade target is its rightmost entity (the thing declarations attach to), and the cascade lives in whichever taxon owns that entity. Context qualifiers contribute specificity but do not move the rule into a different cascade scope. See [`entity-model.md`](./entity-model.md) §5.3 for the full semantics and worked examples.
+
+**Compilers drop rules they can't realize.** A compiler emitting for a specific enforcement altitude (OS for nsjail/bwrap, semantic for kibitzer-hooks, language for lackpy-namespace) silently drops rules whose context qualifier is outside its altitude. This is not an error — the same view can be compiled to multiple targets, each realizing what its target can enforce. The `dry-run` and `check` utilities report which rules were realized by which compilers so authors can see whether their view is honored at each altitude.
 
 ## Declarations
 
@@ -240,7 +278,30 @@ resource[kind="memory"] { max-limit: 512MB; }    /* memory cap at most 512MB */
 tool          { only-kits: python-dev, rust-dev; }   /* only these kits allowed */
 ```
 
-The comparison is property-level, not selector-level. The selector chooses which entities the rule applies to; the declaration's comparison says how to interpret the value against the entity's attribute. See [`entity-model.md`](./entity-model.md) §4.3 for the full semantics.
+The comparison is property-level, not selector-level. The selector chooses which entities the rule applies to; the declaration's comparison says how to interpret the value against the entity's attribute. See [`entity-model.md`](./entity-model.md) §4.5 for the full semantics.
+
+### Pattern-valued declarations (runtime matching)
+
+Selectors match **static** attributes (file paths, tool names, entity kinds) — things that can be evaluated without running anything. For **runtime** matching on call-site state (tool arguments, invocation context), umwelt uses pattern-valued declarations rather than selector extensions. The pattern sits in the declaration block and is evaluated by whichever component realizes the property at runtime.
+
+```
+tool[name="Bash"] {
+  allow-pattern: "git *", "pytest *", "black *", "ruff *";
+  deny-pattern:  "rm -rf *", "curl *", "ssh *", "sudo *";
+}
+
+tool[name="Edit"] {
+  allow-pattern: "*";                      /* no argv restriction */
+}
+
+tool[name="Write"] {
+  only-match: "src/**/*.py", "tests/**";   /* Write only in source + tests */
+}
+```
+
+Pattern semantics are `fnmatch`-style shell globs for v1. Plugins can register additional pattern properties (regex, path-prefix, etc.) with their own comparison categories.
+
+Keeping runtime matching out of the selector grammar preserves three properties of the view format: selector evaluation stays decidable, static analysis tools (`inspect`, `dry-run`, `diff`) can reason about views without a runtime, and compilers can each realize patterns in whatever form their target accepts (nsjail argv allowlist, claude-plugins permission rules, kibitzer hook regex). Compilers that cannot realize runtime matching drop pattern properties the same way they drop out-of-altitude context qualifiers. See [`entity-model.md`](./entity-model.md) §4.4 for details.
 
 ### Multi-value declarations
 
@@ -515,6 +576,37 @@ env                         { allow: false; }
 ```
 
 Note the `max-level: 2` on `tool[name="Bash"]`. Bash is allowed but capped at computation level 2 (data channels + read + compute only) — no writes, no network, no subprocess spawning. The combination of allowing Bash for test invocation while capping its computation level is a pattern that the at-rule sugar can't express; entity-selector form is required for computation-level constraints.
+
+### An actor-conditioned view with cross-taxon compound selectors
+
+```
+# Auth files are read-only to most tools, editable via Edit,
+# and forbidden entirely when Bash is the acting tool.
+
+file[path^="src/auth/"]                          { editable: false; }   /* baseline */
+tool[name="Edit"] file[path^="src/auth/"]       { editable: true;  }   /* Edit can edit auth */
+tool[name="Bash"] file[path^="src/auth/"]       { editable: false;
+                                                  visible:  false; }   /* Bash can't even see auth */
+
+# Runtime argv restriction on Bash: only safe commands.
+tool[name="Bash"] {
+  allow-pattern: "git *", "pytest *", "ruff *", "black *";
+  deny-pattern:  "rm -rf *", "curl *", "ssh *", "sudo *";
+}
+
+resource[kind="memory"]     { limit: 512MB; }
+resource[kind="wall-time"]  { limit: 5m; }
+network { deny: "*"; }
+
+hook[event="after-change"] {
+  run: "pytest tests/auth/ -x";
+  run: "ruff check src/auth/";
+}
+```
+
+The three cascade-related rules on `file[path^="src/auth/"]` all target `file` (the rightmost entity is the target taxon). They compete in the `world` taxon's cascade, with specificity accumulating across compound-selector parts — the two tool-qualified rules beat the baseline because they have higher compound specificity.
+
+**What each compiler realizes.** The OS-altitude compilers (`nsjail`, `bwrap`) see `file[path^="src/auth/"] { editable: false }` as bind-mount permissions and honor it; they silently drop the tool-qualified rules because "acting tool" is not an OS-altitude concept. The semantic-altitude compiler (`kibitzer-hooks`) realizes the tool-qualified rules as in-session hook rules. The claude-plugins hook compiler realizes the `allow-pattern` / `deny-pattern` on Bash as permission checks at tool dispatch time. No single compiler handles all the rules, which is the point — the view describes *intent* across altitudes, and the enforcement stack realizes what it can at each one. `umwelt dry-run` and `umwelt check` report which rules were honored per target.
 
 ### A kitchen-sink view exercising multiple taxa
 
