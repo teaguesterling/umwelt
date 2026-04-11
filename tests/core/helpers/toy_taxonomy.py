@@ -184,3 +184,39 @@ def install_toy_taxonomy(
     register_matcher(taxon="shapes", matcher=shapes)
     register_matcher(taxon="actors", matcher=actors)
     return shapes, actors
+
+
+def install_doubled_taxonomy() -> None:
+    """Register two taxa that both define a `thing` entity.
+
+    For tests that need to exercise ambiguity and disambiguation.
+    """
+    register_taxon(name="shapes", description="shapes toy taxon")
+    register_entity(
+        taxon="shapes",
+        name="thing",
+        attributes={"id": AttrSchema(type=str, required=True)},
+        description="a shapes.thing",
+    )
+    register_property(
+        taxon="shapes",
+        entity="thing",
+        name="paint",
+        value_type=str,
+        description="paint color",
+    )
+
+    register_taxon(name="shadows", description="shadows toy taxon")
+    register_entity(
+        taxon="shadows",
+        name="thing",
+        attributes={"id": AttrSchema(type=str, required=True)},
+        description="a shadows.thing",
+    )
+    register_property(
+        taxon="shadows",
+        entity="thing",
+        name="opacity",
+        value_type=float,
+        description="opacity 0-1",
+    )

@@ -25,7 +25,9 @@ UNRESOLVED_TAXON = "__unresolved__"
 
 
 def parse_selector_list(
-    tokens: list[Any], source_path: Any = None
+    tokens: list[Any],
+    source_path: Any = None,
+    scope_taxon: str | None = None,
 ) -> tuple[ComplexSelector, ...]:
     """Parse a tinycss2 token list into a tuple of ComplexSelector.
 
@@ -35,7 +37,7 @@ def parse_selector_list(
     groups = _split_on_commas(tokens)
     selectors: list[ComplexSelector] = []
     for group in groups:
-        sel = _parse_complex(group, source_path)
+        sel = _parse_complex(group, source_path, scope_taxon=scope_taxon)
         if sel is not None:
             selectors.append(sel)
     if not selectors:
@@ -60,7 +62,9 @@ def _non_whitespace(tokens: list[Any]) -> bool:
     return any(getattr(t, "type", None) != "whitespace" for t in tokens)
 
 
-def _parse_complex(tokens: list[Any], source_path: Any) -> ComplexSelector | None:
+def _parse_complex(
+    tokens: list[Any], source_path: Any, scope_taxon: str | None = None
+) -> ComplexSelector | None:
     """Parse a compound selector token list into a ComplexSelector."""
     tokens = _strip_whitespace(tokens)
     if not tokens:
@@ -127,7 +131,7 @@ def _parse_complex(tokens: list[Any], source_path: Any) -> ComplexSelector | Non
 
     parts: list[CompoundPart] = []
     for idx, (combinator, part_tokens) in enumerate(parts_raw):
-        simple = _parse_simple(part_tokens, source_path)
+        simple = _parse_simple(part_tokens, source_path, scope_taxon=scope_taxon)
         if simple is None:
             raise ViewParseError(
                 "empty compound part in compound selector",
@@ -159,21 +163,35 @@ def _parse_complex(tokens: list[Any], source_path: Any) -> ComplexSelector | Non
     )
 
 
-def _parse_simple(tokens: list[Any], source_path: Any) -> SimpleSelector | None:
+def _parse_simple(
+    tokens: list[Any],
+    source_path: Any,
+    scope_taxon: str | None = None,
+) -> SimpleSelector | None:
     """Walk a token list for one simple selector.
 
     Recognizes (in order): type name, id (#...), classes (.a), attributes
-    ([...]), pseudo-classes (:...). Stops at whitespace (Task 9 has no
-    combinators).
+    ([...]), pseudo-classes (:...).
 
     Note: dotted id values (e.g. #README.md) are handled by consuming
     literal(".") + ident tokens that immediately follow a hash token as
     part of the id value, since umwelt supports filename-style ids.
     """
-    # Strip leading/trailing whitespace at the compound boundary.
     tokens = _strip_whitespace(tokens)
     if not tokens:
         return None
+
+    explicit_taxon: str | None = None
+
+    # Check for an ns|type prefix: IdentToken, LiteralToken("|"), IdentToken
+    if (
+        len(tokens) >= 3
+        and getattr(tokens[0], "type", None) == "ident"
+        and _is_literal(tokens[1], "|")
+        and getattr(tokens[2], "type", None) == "ident"
+    ):
+        explicit_taxon = tokens[0].value
+        tokens = tokens[2:]
 
     type_name: str | None = None
     id_value: str | None = None
@@ -285,7 +303,13 @@ def _parse_simple(tokens: list[Any], source_path: Any) -> SimpleSelector | None:
     if type_name is None and id_value is None and not classes and not attributes and not pseudo_classes:
         return None
 
-    resolved_taxon = _resolve_taxon(type_name, tokens, source_path)
+    resolved_taxon = _resolve_taxon(
+        type_name,
+        tokens,
+        source_path,
+        explicit_taxon=explicit_taxon,
+        scope_taxon=scope_taxon,
+    )
     return SimpleSelector(
         type_name=type_name,
         taxon=resolved_taxon,
@@ -298,19 +322,49 @@ def _parse_simple(tokens: list[Any], source_path: Any) -> SimpleSelector | None:
 
 
 def _resolve_taxon(
-    type_name: str | None, tokens: list[Any], source_path: Any
+    type_name: str | None,
+    tokens: list[Any],
+    source_path: Any,
+    explicit_taxon: str | None = None,
+    scope_taxon: str | None = None,
 ) -> str:
     """Look up the entity type in the registry. Unique match wins.
 
-    - None or "*": return a sentinel "*" — the universal selector doesn't
-      map to a specific taxon.
+    - None or "*": return the scope_taxon sentinel or "*".
+    - explicit_taxon set: validate and return it.
     - Known, unique: return that taxon name.
     - Unknown: raise ViewParseError.
-    - Ambiguous: defer to Task 14; for now, raise until disambiguation
-      support lands.
+    - Ambiguous: use scope_taxon if set; otherwise raise.
     """
+    from umwelt.errors import RegistryError
+    from umwelt.registry import get_entity, get_taxon
+
     if type_name is None or type_name == "*":
-        return "*"
+        return scope_taxon or "*"
+
+    if explicit_taxon is not None:
+        # Verify the taxon exists.
+        try:
+            get_taxon(explicit_taxon)
+        except RegistryError as exc:
+            raise ViewParseError(
+                f"unknown taxon {explicit_taxon!r}",
+                line=1,
+                col=1,
+                source_path=source_path,
+            ) from exc
+        # Verify the entity exists inside that taxon.
+        try:
+            get_entity(explicit_taxon, type_name)
+        except RegistryError as exc:
+            raise ViewParseError(
+                f"no entity {type_name!r} in taxon {explicit_taxon!r}",
+                line=1,
+                col=1,
+                source_path=source_path,
+            ) from exc
+        return explicit_taxon
+
     taxa = resolve_entity_type(type_name)
     if not taxa:
         first_tok = next(
@@ -325,7 +379,9 @@ def _resolve_taxon(
         )
     if len(taxa) == 1:
         return taxa[0]
-    # Ambiguous — Task 14 adds the world|file syntax. For now, error.
+    # Ambiguous. Check scope.
+    if scope_taxon is not None and scope_taxon in taxa:
+        return scope_taxon
     raise ViewParseError(
         f"ambiguous entity type {type_name!r}: registered in {sorted(taxa)}",
         line=1,

@@ -21,7 +21,8 @@ from umwelt.ast import (
     UnknownAtRule,
     View,
 )
-from umwelt.errors import ViewParseError
+from umwelt.errors import RegistryError, ViewParseError
+from umwelt.registry import get_taxon
 from umwelt.selector.parse import parse_selector_list
 
 # tinycss2's ParseError node doesn't expose a typed class we can isinstance-check
@@ -64,7 +65,17 @@ def parse(source: str | Path, *, validate: bool = True) -> View:
             if rule is not None:
                 rules.append(rule)
         elif node_type == "at-rule":
-            unknown_at_rules.append(_build_unknown_at_rule(node))
+            at_name: str = str(
+                getattr(node, "lower_at_keyword", None)
+                or getattr(node, "at_keyword", "")
+                or ""
+            )
+            if _is_taxon_scope(at_name):
+                rules.extend(
+                    _expand_taxon_scope(node, warnings, source_path, at_name)
+                )
+            else:
+                unknown_at_rules.append(_build_unknown_at_rule(node))
         # tinycss2 with skip_whitespace=True shouldn't yield bare whitespace here.
 
     return View(
@@ -101,10 +112,13 @@ def _build_rule_block(
     node: Any,
     warnings: list[ParseWarning],
     source_path: Path | None = None,
+    scope_taxon: str | None = None,
 ) -> RuleBlock | None:
     prelude = list(getattr(node, "prelude", []) or [])
     content = list(getattr(node, "content", []) or [])
-    selectors = parse_selector_list(prelude, source_path=source_path)
+    selectors = parse_selector_list(
+        prelude, source_path=source_path, scope_taxon=scope_taxon
+    )
     declarations = _parse_declarations(content, source_path, warnings)
     return RuleBlock(
         selectors=selectors,
@@ -112,6 +126,46 @@ def _build_rule_block(
         nested_blocks=(),
         span=_span(node),
     )
+
+
+def _is_taxon_scope(at_name: str) -> bool:
+    try:
+        get_taxon(at_name)
+        return True
+    except RegistryError:
+        return False
+
+
+def _expand_taxon_scope(
+    node: Any,
+    warnings: list[ParseWarning],
+    source_path: Path | None,
+    scope_taxon: str,
+) -> list[RuleBlock]:
+    """Parse the contents of an @<taxon> block as a fresh rule list.
+
+    Inner selectors are parsed with `scope_taxon` set so bare entity names
+    that are ambiguous across taxa resolve against the scope first.
+    """
+    inner_rules: list[RuleBlock] = []
+    content = getattr(node, "content", None)
+    if content is None:
+        return inner_rules
+    # Re-parse the block content as a stylesheet fragment.
+    inner_nodes = tinycss2.parse_rule_list(
+        list(content), skip_comments=True, skip_whitespace=True
+    )
+    for inner in inner_nodes:
+        if _is_parse_error(inner):
+            raise _parse_error_to_view_error(inner, source_path)
+        if getattr(inner, "type", None) != "qualified-rule":
+            continue
+        rule = _build_rule_block(
+            inner, warnings, source_path=source_path, scope_taxon=scope_taxon
+        )
+        if rule is not None:
+            inner_rules.append(rule)
+    return inner_rules
 
 
 def _parse_declarations(
