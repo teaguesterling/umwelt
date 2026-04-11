@@ -67,8 +67,12 @@ def test_parse_syntax_error_raises():
     with registry_scope():
         install_toy_taxonomy()
         with pytest.raises(ViewParseError):
-            # Missing closing brace — tinycss2 reports this as a parse error.
-            parse("thing { color: red")
+            # A prelude with no block — tinycss2 reaches EOF before finding
+            # the `{}` and emits a qualified-rule parse error. tinycss2 is
+            # extremely lenient (auto-closes unterminated braces, strings,
+            # and comments at EOF), so this is one of the few inputs that
+            # reliably surfaces through the parser error path.
+            parse('"incomplete"')
 
 
 def test_parse_accepts_string_or_path(tmp_path):
