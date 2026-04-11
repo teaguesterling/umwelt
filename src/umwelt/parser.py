@@ -78,13 +78,18 @@ def parse(source: str | Path, *, validate: bool = True) -> View:
                 unknown_at_rules.append(_build_unknown_at_rule(node))
         # tinycss2 with skip_whitespace=True shouldn't yield bare whitespace here.
 
-    return View(
+    view = View(
         rules=tuple(rules),
         unknown_at_rules=tuple(unknown_at_rules),
         warnings=tuple(warnings),
         source_text=text,
         source_path=source_path,
     )
+    if validate:
+        from umwelt.validate import validate as run_validators
+
+        view = run_validators(view)
+    return view
 
 
 def _is_parse_error(node: Any) -> bool:

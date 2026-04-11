@@ -32,6 +32,11 @@ from umwelt.registry.taxa import (
     register_taxon,
     registry_scope,
 )
+from umwelt.registry.validators import (
+    ValidatorProtocol,
+    get_validators,
+    register_validator,
+)
 
 __all__ = [
     "AttrSchema",
@@ -40,10 +45,12 @@ __all__ = [
     "PropertySchema",
     "RegistryState",
     "TaxonSchema",
+    "ValidatorProtocol",
     "get_entity",
     "get_matcher",
     "get_property",
     "get_taxon",
+    "get_validators",
     "list_entities",
     "list_properties",
     "list_taxa",
@@ -51,6 +58,7 @@ __all__ = [
     "register_matcher",
     "register_property",
     "register_taxon",
+    "register_validator",
     "registry_scope",
     "resolve_entity_type",
 ]

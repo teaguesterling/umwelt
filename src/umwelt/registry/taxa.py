@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from umwelt.registry.entities import EntitySchema
     from umwelt.registry.matchers import MatcherProtocol
     from umwelt.registry.properties import PropertySchema
+    from umwelt.registry.validators import ValidatorProtocol
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,8 @@ class RegistryState:
     # Keyed by (taxon_name, entity_name, property_name)
     properties: dict[tuple[str, str, str], PropertySchema] = field(default_factory=dict)
     matchers: dict[str, MatcherProtocol] = field(default_factory=dict)
+    # Multiple validators per taxon allowed; they all run in registration order.
+    validators: dict[str, list[ValidatorProtocol]] = field(default_factory=dict)
 
 
 _GLOBAL_STATE = RegistryState()
