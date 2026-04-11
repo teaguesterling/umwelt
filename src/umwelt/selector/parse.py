@@ -19,6 +19,7 @@ from umwelt.ast import (
 )
 from umwelt.errors import ViewParseError
 from umwelt.registry import resolve_entity_type
+from umwelt.selector.specificity import compound_specificity
 
 # Placeholder taxon — kept for backward compat but no longer used in production path.
 UNRESOLVED_TAXON = "__unresolved__"
@@ -169,10 +170,16 @@ def _parse_complex(
             if p.selector.taxon != "*":
                 target_taxon = p.selector.taxon
                 break
+    selector = ComplexSelector(
+        parts=tuple(parts),
+        target_taxon=target_taxon,
+        specificity=(0, 0, 0),  # placeholder; recomputed below
+    )
+    final_spec = compound_specificity(selector)
     return ComplexSelector(
         parts=tuple(parts),
         target_taxon=target_taxon,
-        specificity=(0, 0, 0),  # Task 16 computes this.
+        specificity=final_spec,
     )
 
 
