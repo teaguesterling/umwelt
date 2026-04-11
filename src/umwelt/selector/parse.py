@@ -60,15 +60,97 @@ def _non_whitespace(tokens: list[Any]) -> bool:
 
 
 def _parse_complex(tokens: list[Any], source_path: Any) -> ComplexSelector | None:
-    """Task 9 form: one compound part with no combinators."""
-    compound = _parse_simple(tokens, source_path)
-    if compound is None:
+    """Parse a compound selector token list into a ComplexSelector."""
+    tokens = _strip_whitespace(tokens)
+    if not tokens:
         return None
-    part = CompoundPart(selector=compound, combinator="root", mode="root")
+
+    # Split on combinators into (combinator, simple-token-list) pairs.
+    parts_raw: list[tuple[str, list[Any]]] = []
+    current: list[Any] = []
+    current_combinator: str = "root"
+    pending_ws = False
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        ttype = getattr(t, "type", None)
+
+        if ttype == "whitespace":
+            # Whitespace might be a combinator (descendant) or just padding
+            # around an explicit combinator. Record that we've seen whitespace
+            # and let the next token decide.
+            pending_ws = True
+            i += 1
+            continue
+
+        if _is_literal(t, ">"):
+            # Close the current part; start a new one with "child" combinator.
+            if current:
+                parts_raw.append((current_combinator, current))
+            current = []
+            current_combinator = "child"
+            pending_ws = False
+            i += 1
+            continue
+
+        if _is_literal(t, "+") or _is_literal(t, "~"):
+            # Sibling combinators — parse but treat as "sibling"/"adjacent".
+            # Not exercised in v0.1, but the grammar permits them.
+            if current:
+                parts_raw.append((current_combinator, current))
+            current = []
+            current_combinator = "adjacent" if _is_literal(t, "+") else "sibling"
+            pending_ws = False
+            i += 1
+            continue
+
+        if pending_ws and current:
+            # Whitespace between tokens and we're mid-part, so the whitespace
+            # is a descendant combinator. Close the current part.
+            parts_raw.append((current_combinator, current))
+            current = [t]
+            current_combinator = "descendant"
+            pending_ws = False
+            i += 1
+            continue
+
+        current.append(t)
+        pending_ws = False
+        i += 1
+
+    if current:
+        parts_raw.append((current_combinator, current))
+
+    if not parts_raw:
+        return None
+
+    parts: list[CompoundPart] = []
+    for idx, (combinator, part_tokens) in enumerate(parts_raw):
+        simple = _parse_simple(part_tokens, source_path)
+        if simple is None:
+            raise ViewParseError(
+                "empty compound part in compound selector",
+                line=1,
+                col=1,
+                source_path=source_path,
+            )
+        # First part always has combinator "root" regardless of what we
+        # recorded (we seeded with "root" and never rewrite it).
+        combinator_kind = "root" if idx == 0 else combinator
+        parts.append(
+            CompoundPart(
+                selector=simple,
+                combinator=combinator_kind,  # type: ignore[arg-type]
+                mode="root" if idx == 0 else "structural",
+            )
+        )
+
+    # target_taxon is the rightmost part's taxon; Task 13 resolves it.
+    target_taxon = parts[-1].selector.taxon
     return ComplexSelector(
-        parts=(part,),
-        target_taxon=compound.taxon,
-        specificity=(0, 0, 0),  # Task 15 computes this properly.
+        parts=tuple(parts),
+        target_taxon=target_taxon,
+        specificity=(0, 0, 0),  # Task 16 computes this.
     )
 
 
@@ -99,17 +181,6 @@ def _parse_simple(tokens: list[Any], source_path: Any) -> SimpleSelector | None:
     while i < len(tokens):
         t = tokens[i]
         ttype = getattr(t, "type", None)
-
-        if ttype == "whitespace":
-            # In Task 9, interior whitespace terminates the compound. We'll
-            # handle combinators in Task 12; for now, require no interior
-            # whitespace.
-            raise ViewParseError(
-                "unexpected whitespace inside simple selector",
-                line=int(getattr(t, "source_line", 1) or 1),
-                col=int(getattr(t, "source_column", 1) or 1),
-                source_path=source_path,
-            )
 
         if ttype == "ident" and type_name is None and not classes and not attributes and not pseudo_classes and id_value is None:
             type_name = t.value
