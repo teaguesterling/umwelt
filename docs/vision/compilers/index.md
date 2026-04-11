@@ -1,17 +1,24 @@
 # Compilers
 
-*The compiler layer is umwelt's translation surface: it takes a parsed `View` and emits whatever native configuration format each enforcement target already accepts. This document is the compiler taxonomy and registry. Individual compilers have their own detail docs in this directory.*
+*The compiler layer is umwelt's translation surface: it takes a parsed `View` and emits whatever native configuration format each enforcement target already accepts. This document is the compiler taxonomy and registry. Individual compilers have their own detail docs in this directory. For the framing of why compilers are the translation boundary, see [`../policy-layer.md`](../policy-layer.md) — umwelt is the common language of the specified band, and compilers are how each enforcement tool reads it.*
+
+## Where compilers live
+
+**Core umwelt ships zero concrete compilers.** `umwelt.compilers` defines the `Compiler` protocol and the registry; concrete compilers live in consumers. The first-party sandbox consumer (`umwelt.sandbox.compilers.*`) ships nsjail, bwrap, lackpy-namespace, and kibitzer-hooks as its first-class targets. Third-party consumers register their own compilers via the same API — `register_compiler("<name>", CompilerImpl())` at import time — and become available to `umwelt compile --target <name>` without any modification to core umwelt.
+
+This split is load-bearing: it's what lets umwelt be *vocabulary-agnostic* at the core. A consumer that registers a non-sandbox taxonomy (e.g., an access-control domain) can provide its own compilers against its own entities without waiting for core umwelt to learn about its vocabulary.
 
 ## What a compiler does
 
-A compiler is a pure function: `View → target-native-format`. It reads an umwelt AST and produces text (or structured data) that a specific enforcement tool can consume directly. Compilers:
+A compiler is a pure function: `ResolvedView → target-native-format`. It reads an umwelt AST after cascade resolution and produces text (or structured data) that a specific enforcement tool can consume directly. Compilers:
 
 - **Never import the target tool's Python wrapper at runtime.** The compiler targets the tool's *native* config format — textproto for nsjail, argv for bwrap, YAML for kubernetes, sbatch for slurm, etc. umwelt stays a leaf dependency.
-- **Silently ignore view constructs outside their altitude.** An nsjail compiler doesn't care about `@tools`; a kibitzer-hooks compiler doesn't care about `@budget`. Unknown at-rules are preserved in the AST and skipped by compilers that don't recognize them, which is the forward-compatibility property.
-- **Are pure transformations.** Same `View` in, same output out. No side effects. No filesystem access. No network calls. The compiler's job is translation, not execution. (Runners handle execution; see `../package-design.md`.)
-- **Live in `umwelt/compilers/<name>.py`** and register themselves via the compiler registry so CLI commands like `umwelt compile --target <name>` work uniformly.
+- **Declare their altitude.** Each compiler carries an `altitude` attribute: `os`, `language`, `semantic`, or `conversational`. The altitude determines which cross-taxon context qualifiers the compiler can realize (see [`../entity-model.md`](../entity-model.md) §4.3). An OS-altitude compiler like nsjail has no concept of "acting tool" — rules qualified by `tool[name="Bash"]` context are outside its altitude and are dropped silently.
+- **Silently drop rules they can't realize.** Unknown taxa, out-of-altitude context qualifiers, and pattern properties whose targets don't support runtime matching are all dropped rather than raising errors. This is the composition model: one view, multiple compilers, each realizing what its target can enforce. The `dry-run` and `check` utilities report per-target which rules were realized. A rule that no compiler can realize is still a valid view (it documents intent) — it's just declarative-only at every currently-registered altitude.
+- **Are pure transformations.** Same `ResolvedView` in, same output out. No side effects. No filesystem access. No network calls. The compiler's job is translation, not execution. (Runners handle execution; see `../package-design.md`.)
+- **Register themselves** via `umwelt.compilers.register("<name>", compiler_impl)` at consumer import time. The CLI dispatches to the registered compiler by name.
 
-See [`../package-design.md`](../package-design.md#the-compiler-protocol) for the `Compiler` protocol definition.
+See [`../package-design.md`](../package-design.md#the-compiler-protocol) for the `Compiler` protocol definition and [`../entity-model.md`](../entity-model.md) §4.3 for the cascade-target + altitude-filtering semantics.
 
 ## Taxonomy: locality and enforcement semantics
 
@@ -82,11 +89,12 @@ These target enforcement mechanisms that aren't OS sandboxes but still consume v
 | `lackpy-namespace` | Python dict (lackpy namespace config) | planned | Language altitude. Reads `@tools` and a future `@namespace` at-rule, emits a lackpy namespace/tool restriction config. |
 | `kibitzer-hooks` | kibitzer rule dict | planned | Semantic altitude. Reads `@tools` (for hook-based enforcement of allow/deny during a Claude Code session) and emits a kibitzer rule configuration. |
 
-### Conversational altitude (speculative)
+### Conversational altitude
 
 | Compiler | Target format | Status | Notes |
 |---|---|---|---|
-| `retrieval-prompt` | prompt fragment + example selection | speculative | Reads a future `@retrieval` or `@context` at-rule and emits a prompt-composition directive for the delegate's harness. Unclear what the native format should be — probably depends on which harness the delegate runs under. Speculative until we have a concrete consumer. |
+| `delegate-context` | prompt fragment | v1.1 committed | The view-transparency compiler (the [SELinux coda](../policy-layer.md#the-selinux-coda-and-view-transparency) from the policy-layer framing). Walks a resolved view, pulls descriptions from the registered plugin metadata, and emits a prompt fragment the delegate can read to model its own constraints. Consumes description fields from every taxon / entity / property registration. The governed actor sees its own bounds rather than learning them empirically. Load-bearing for the Ma framework's "transparent specification" principle. |
+| `retrieval-prompt` | prompt fragment + example selection | speculative | Reads a future `@retrieval` or `@context` at-rule and emits a prompt-composition directive for the delegate's harness. Distinct from `delegate-context` — retrieval-prompt is about *what* to put in the delegate's context (examples, history), `delegate-context` is about *describing the bounds* the delegate operates under. Speculative until we have a concrete consumer. |
 
 ## Protocol variations: how local and remote compilers differ
 
@@ -130,15 +138,16 @@ All of this is on the *runner* side (`umwelt.runners.*`), not the compiler side.
 
 The procedure, for anyone (human or agent) wanting to extend umwelt with a new target:
 
-1. **Write a design doc in this directory.** `compilers/<target>.md`. Use [`nsjail.md`](./nsjail.md) or [`bwrap.md`](./bwrap.md) as a template. Include: scope (which view constructs compile), mapping table (view construct → target output), worked example (view file + expected output side-by-side), constructs ignored, implementation shape, testing strategy, open questions.
-2. **Implement the compiler module** at `umwelt/compilers/<target>.py`. Pure function `compile(view: View) -> str | list[str] | dict`. No runtime dependency on the target tool's Python wrapper. Register via `umwelt.compilers.registry.register("<target>", Compiler())`.
-3. **Implement a runner** at `umwelt/runners/<target>.py` if the runner shape differs from the local-subprocess default. For remote targets, expose both `run_<target>_sync` and `run_<target>_async` variants.
-4. **Write fixtures** in `umwelt/_fixtures/` — 2-3 reference view files paired with expected `<target>` output in `_fixtures/expected/<target>/`.
-5. **Write unit tests** for the mapping table and snapshot tests against the fixtures.
-6. **Write an integration test** (skipped if the target binary/endpoint isn't available) that actually runs a trivial delegate under the new target end-to-end.
-7. **Update this index** to move the compiler from "planned" to "implemented and documented."
+1. **Pick a host package for the compiler.** First-party sandbox compilers live under `src/umwelt/sandbox/compilers/<target>.py`. Third-party compilers live in their own package (e.g., `umwelt-kubernetes`, `blq-umwelt-compiler`) and are installed alongside umwelt. Core umwelt ships no concrete compilers.
+2. **Write a design doc in this directory (or in the host package's own docs for third-party compilers).** Use [`nsjail.md`](./nsjail.md) or [`bwrap.md`](./bwrap.md) as a template. Include: declared altitude (`os` / `language` / `semantic` / `conversational`), scope (which entity types and properties the compiler realizes), mapping table (entity + property → target output), worked example (view file + expected output side-by-side), handling of out-of-altitude cross-taxon qualifiers (what the compiler drops), pattern-property realization (if any), testing strategy, open questions.
+3. **Implement the compiler module.** Pure function `compile(view: ResolvedView) -> str | list[str] | dict`. The compiler reads the resolved view (post-cascade) and walks its target taxon's rules. No runtime dependency on the target tool's Python wrapper. Declare `target_name`, `target_format`, and `altitude` as class attributes. Register via `umwelt.compilers.register("<target>", CompilerInstance())` at import time.
+4. **Implement a runner** (optional) if the runner shape differs from the local-subprocess default. First-party runners live under `src/umwelt/sandbox/runners/<target>.py`; third-party runners live alongside their compiler. For remote targets, expose both `run_<target>_sync` and `run_<target>_async` variants.
+5. **Write fixtures** — 2–3 reference view files paired with expected `<target>` output in the host package's `_fixtures/expected/<target>/` directory.
+6. **Write unit tests** for the mapping table and snapshot tests against the fixtures, including tests that show the compiler correctly dropping out-of-altitude context qualifiers and unrealized pattern properties.
+7. **Write an integration test** (skipped if the target binary/endpoint isn't available) that runs a trivial delegate under the new target end-to-end.
+8. **Update this index** (or the host package's own catalog) to move the compiler from "planned" to "implemented and documented."
 
-The procedure is the same whether the target is local or remote, sync or async. The Compiler protocol handles the differences behind the scenes.
+The procedure is the same whether the target is local or remote, sync or async, first-party or third-party. The Compiler protocol and the plugin registry handle the differences behind the scenes.
 
 ## What compilers don't do
 
