@@ -6,8 +6,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from umwelt.errors import RegistryError
+
+if TYPE_CHECKING:
+    from umwelt.registry.entities import EntitySchema
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,8 @@ class RegistryState:
     """
 
     taxa: dict[str, TaxonSchema] = field(default_factory=dict)
+    # Keyed by (taxon_name, entity_name)
+    entities: dict[tuple[str, str], EntitySchema] = field(default_factory=dict)
 
 
 _GLOBAL_STATE = RegistryState()
