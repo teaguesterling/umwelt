@@ -13,6 +13,11 @@ from umwelt.registry.entities import (
     register_entity,
     resolve_entity_type,
 )
+from umwelt.registry.matchers import (
+    MatcherProtocol,
+    get_matcher,
+    register_matcher,
+)
 from umwelt.registry.properties import (
     PropertySchema,
     get_property,
@@ -31,16 +36,19 @@ from umwelt.registry.taxa import (
 __all__ = [
     "AttrSchema",
     "EntitySchema",
+    "MatcherProtocol",
     "PropertySchema",
     "RegistryState",
     "TaxonSchema",
     "get_entity",
+    "get_matcher",
     "get_property",
     "get_taxon",
     "list_entities",
     "list_properties",
     "list_taxa",
     "register_entity",
+    "register_matcher",
     "register_property",
     "register_taxon",
     "registry_scope",
