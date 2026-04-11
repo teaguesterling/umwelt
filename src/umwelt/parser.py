@@ -21,6 +21,7 @@ from umwelt.ast import (
     View,
 )
 from umwelt.errors import ViewParseError
+from umwelt.selector.parse import parse_selector_list
 
 # tinycss2's ParseError node doesn't expose a typed class we can isinstance-check
 # cleanly across versions, so we sniff by attribute instead.
@@ -58,7 +59,7 @@ def parse(source: str | Path, *, validate: bool = True) -> View:
             raise _parse_error_to_view_error(node, source_path)
         node_type = getattr(node, "type", None)
         if node_type == "qualified-rule":
-            rule = _build_rule_block(node, warnings)
+            rule = _build_rule_block(node, warnings, source_path=source_path)
             if rule is not None:
                 rules.append(rule)
         elif node_type == "at-rule":
@@ -96,16 +97,16 @@ def _span(node: Any) -> SourceSpan:
 
 
 def _build_rule_block(
-    node: Any, warnings: list[ParseWarning]
+    node: Any, warnings: list[ParseWarning], source_path: Path | None = None
 ) -> RuleBlock | None:
-    """Turn a tinycss2 qualified-rule into a `RuleBlock`.
-
-    Task 8 only produces an empty-selector, empty-declaration block. Later
-    tasks (9-11) populate the selectors and declarations.
-    """
+    prelude = list(getattr(node, "prelude", []) or [])
+    try:
+        selectors = parse_selector_list(prelude, source_path=source_path)
+    except ViewParseError:
+        raise
     return RuleBlock(
-        selectors=(),
-        declarations=(),
+        selectors=selectors,
+        declarations=(),  # Task 11 populates declarations
         nested_blocks=(),
         span=_span(node),
     )
