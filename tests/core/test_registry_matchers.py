@@ -26,6 +26,12 @@ class NullMatcher:
     def condition_met(self, selector: Any, context: Any = None) -> bool:
         return False
 
+    def get_attribute(self, entity: Any, name: str) -> Any:
+        return None
+
+    def get_id(self, entity: Any) -> str | None:
+        return None
+
 
 def test_register_and_lookup_matcher():
     with registry_scope():

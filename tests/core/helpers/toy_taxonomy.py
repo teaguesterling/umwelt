@@ -52,6 +52,8 @@ class ToyShapesMatcher:
     things: list[ToyThing] = field(default_factory=list)
 
     def match_type(self, type_name: str, context: Any = None) -> list[ToyThing]:
+        if type_name == "*":
+            return list(self.things)
         return [t for t in self.things if t.type_name == type_name]
 
     def children(self, parent: ToyThing, child_type: str) -> list[ToyThing]:
@@ -62,6 +64,12 @@ class ToyShapesMatcher:
     def condition_met(self, selector: Any, context: Any = None) -> bool:
         # Shapes aren't used as context qualifiers in v0.1-core tests.
         return False
+
+    def get_attribute(self, entity: ToyThing, name: str) -> Any:
+        return getattr(entity, name, None)
+
+    def get_id(self, entity: ToyThing) -> str | None:
+        return entity.id
 
 
 @dataclass
@@ -78,6 +86,8 @@ class ToyActorsMatcher:
     active_ids: frozenset[str] = field(default_factory=frozenset)
 
     def match_type(self, type_name: str, context: Any = None) -> list[ToyActor]:
+        if type_name == "*":
+            return list(self.actors)
         return [a for a in self.actors if a.type_name == type_name]
 
     def children(self, parent: Any, child_type: str) -> list[Any]:
@@ -105,6 +115,12 @@ class ToyActorsMatcher:
             ):
                 return True
         return False
+
+    def get_attribute(self, entity: ToyActor, name: str) -> Any:
+        return getattr(entity, name, None)
+
+    def get_id(self, entity: ToyActor) -> str | None:
+        return entity.id
 
 
 def install_toy_taxonomy(

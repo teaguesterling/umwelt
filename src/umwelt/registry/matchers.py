@@ -51,6 +51,21 @@ class MatcherProtocol(Protocol):
         """
         ...
 
+    def get_attribute(self, entity: Any, name: str) -> Any:
+        """Return the value of an attribute on an entity, or None if absent.
+
+        Used by the selector match engine to evaluate attribute filters.
+        """
+        ...
+
+    def get_id(self, entity: Any) -> str | None:
+        """Return the entity's identity value (used by `#id` selectors).
+
+        Return None when the entity has no natural identity; `#id` selectors
+        won't match such entities.
+        """
+        ...
+
 
 def register_matcher(*, taxon: str, matcher: MatcherProtocol) -> None:
     """Register a matcher for a taxon."""
