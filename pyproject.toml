@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "umwelt"
+version = "0.1.0.dev0"
+description = "The common language of the specified band. A CSS-shaped declarative format for policy specification."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+  { name = "Teague Sterling" },
+]
+keywords = ["sandbox", "delegate", "agent", "policy", "specified-band", "view"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: System :: Systems Administration",
+  "Typing :: Typed",
+]
+dependencies = [
+  "tinycss2>=1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.5",
+  "mypy>=1.10",
+]
+
+[project.scripts]
+umwelt = "umwelt.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/teaguesterling/umwelt"
+Source = "https://github.com/teaguesterling/umwelt"
+Issues = "https://github.com/teaguesterling/umwelt/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/umwelt"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+files = ["src/umwelt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
