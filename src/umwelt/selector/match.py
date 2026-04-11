@@ -110,9 +110,21 @@ def match_complex(
     `eval_context` is passed to cross-taxon context qualifiers.
     """
     registry = registry or _RegistryAdapter()
+    target_taxon = complex_sel.target_taxon
     current: list[Any] | None = None
     for part in complex_sel.parts:
-        if part.mode == "context":
+        # A part acts as a context qualifier (gate) if its taxon differs from
+        # the overall target_taxon. This covers both:
+        #   - a root part in a foreign taxon: `actor[role="admin"] thing { }`
+        #     where actor is the qualifier and thing is the structural target.
+        #   - an explicit context-mode part in a foreign taxon.
+        # Parts whose taxon matches target_taxon (including context-mode ones)
+        # are structural parts that select entities.
+        is_context_gate = (
+            part.selector.taxon != "*"
+            and part.selector.taxon != target_taxon
+        )
+        if is_context_gate:
             qualifier_matcher = registry.get_matcher(part.selector.taxon)
             if not qualifier_matcher.condition_met(part.selector, eval_context):
                 return []
