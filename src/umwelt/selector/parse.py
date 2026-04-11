@@ -18,8 +18,9 @@ from umwelt.ast import (
     SourceSpan,
 )
 from umwelt.errors import ViewParseError
+from umwelt.registry import resolve_entity_type
 
-# Placeholder taxon — Task 15 resolves type names against the registry.
+# Placeholder taxon — kept for backward compat but no longer used in production path.
 UNRESOLVED_TAXON = "__unresolved__"
 
 
@@ -145,8 +146,12 @@ def _parse_complex(tokens: list[Any], source_path: Any) -> ComplexSelector | Non
             )
         )
 
-    # target_taxon is the rightmost part's taxon; Task 13 resolves it.
     target_taxon = parts[-1].selector.taxon
+    if target_taxon == "*":
+        for p in reversed(parts):
+            if p.selector.taxon != "*":
+                target_taxon = p.selector.taxon
+                break
     return ComplexSelector(
         parts=tuple(parts),
         target_taxon=target_taxon,
@@ -280,14 +285,52 @@ def _parse_simple(tokens: list[Any], source_path: Any) -> SimpleSelector | None:
     if type_name is None and id_value is None and not classes and not attributes and not pseudo_classes:
         return None
 
+    resolved_taxon = _resolve_taxon(type_name, tokens, source_path)
     return SimpleSelector(
         type_name=type_name,
-        taxon=UNRESOLVED_TAXON,
+        taxon=resolved_taxon,
         id_value=id_value,
         classes=tuple(classes),
         attributes=tuple(attributes),
         pseudo_classes=tuple(pseudo_classes),
         span=span,
+    )
+
+
+def _resolve_taxon(
+    type_name: str | None, tokens: list[Any], source_path: Any
+) -> str:
+    """Look up the entity type in the registry. Unique match wins.
+
+    - None or "*": return a sentinel "*" — the universal selector doesn't
+      map to a specific taxon.
+    - Known, unique: return that taxon name.
+    - Unknown: raise ViewParseError.
+    - Ambiguous: defer to Task 14; for now, raise until disambiguation
+      support lands.
+    """
+    if type_name is None or type_name == "*":
+        return "*"
+    taxa = resolve_entity_type(type_name)
+    if not taxa:
+        first_tok = next(
+            (t for t in tokens if getattr(t, "type", None) != "whitespace"),
+            None,
+        )
+        raise ViewParseError(
+            f"unknown entity type {type_name!r}",
+            line=int(getattr(first_tok, "source_line", 1) or 1) if first_tok else 1,
+            col=int(getattr(first_tok, "source_column", 1) or 1) if first_tok else 1,
+            source_path=source_path,
+        )
+    if len(taxa) == 1:
+        return taxa[0]
+    # Ambiguous — Task 14 adds the world|file syntax. For now, error.
+    raise ViewParseError(
+        f"ambiguous entity type {type_name!r}: registered in {sorted(taxa)}",
+        line=1,
+        col=1,
+        source_path=source_path,
     )
 
 
