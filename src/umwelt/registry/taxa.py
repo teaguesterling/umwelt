@@ -12,6 +12,7 @@ from umwelt.errors import RegistryError
 
 if TYPE_CHECKING:
     from umwelt.registry.entities import EntitySchema
+    from umwelt.registry.properties import PropertySchema
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,8 @@ class RegistryState:
     taxa: dict[str, TaxonSchema] = field(default_factory=dict)
     # Keyed by (taxon_name, entity_name)
     entities: dict[tuple[str, str], EntitySchema] = field(default_factory=dict)
+    # Keyed by (taxon_name, entity_name, property_name)
+    properties: dict[tuple[str, str, str], PropertySchema] = field(default_factory=dict)
 
 
 _GLOBAL_STATE = RegistryState()
