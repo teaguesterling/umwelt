@@ -1,0 +1,128 @@
+"""Top-level view parser.
+
+Uses `tinycss2` for CSS tokenization; walks its output into the umwelt AST.
+Selector-string parsing lives in `umwelt.selector.parse`; this module is the
+orchestrator that recognizes rule blocks vs. at-rules, extracts source
+positions, and produces the final `View`.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import tinycss2
+
+from umwelt.ast import (
+    ParseWarning,
+    RuleBlock,
+    SourceSpan,
+    UnknownAtRule,
+    View,
+)
+from umwelt.errors import ViewParseError
+
+# tinycss2's ParseError node doesn't expose a typed class we can isinstance-check
+# cleanly across versions, so we sniff by attribute instead.
+
+
+def parse(source: str | Path, *, validate: bool = True) -> View:
+    """Parse a view from text or a file path into a `View` AST.
+
+    Args:
+        source: Either a string containing view text, or a `Path` to a view file.
+        validate: Whether to run the registered validators after parsing. v0.1
+            defers validator implementation to Task 18; the flag is plumbed now.
+
+    Returns:
+        A `View` with rules, preserved unknown at-rules, and warnings.
+
+    Raises:
+        ViewParseError: On any syntactic error, with line and column.
+    """
+    if isinstance(source, Path):
+        text = source.read_text()
+        source_path: Path | None = source
+    else:
+        text = source
+        source_path = None
+
+    nodes = tinycss2.parse_stylesheet(text, skip_comments=True, skip_whitespace=True)
+
+    rules: list[RuleBlock] = []
+    unknown_at_rules: list[UnknownAtRule] = []
+    warnings: list[ParseWarning] = []
+
+    for node in nodes:
+        if _is_parse_error(node):
+            raise _parse_error_to_view_error(node, source_path)
+        node_type = getattr(node, "type", None)
+        if node_type == "qualified-rule":
+            rule = _build_rule_block(node, warnings)
+            if rule is not None:
+                rules.append(rule)
+        elif node_type == "at-rule":
+            unknown_at_rules.append(_build_unknown_at_rule(node))
+        # tinycss2 with skip_whitespace=True shouldn't yield bare whitespace here.
+
+    return View(
+        rules=tuple(rules),
+        unknown_at_rules=tuple(unknown_at_rules),
+        warnings=tuple(warnings),
+        source_text=text,
+        source_path=source_path,
+    )
+
+
+def _is_parse_error(node: Any) -> bool:
+    return getattr(node, "type", None) == "error"
+
+
+def _parse_error_to_view_error(
+    node: Any, source_path: Path | None
+) -> ViewParseError:
+    message = getattr(node, "message", "parse error")
+    line = int(getattr(node, "source_line", 1) or 1)
+    col = int(getattr(node, "source_column", 1) or 1)
+    return ViewParseError(
+        message, line=line, col=col, source_path=source_path
+    )
+
+
+def _span(node: Any) -> SourceSpan:
+    line = int(getattr(node, "source_line", 1) or 1)
+    col = int(getattr(node, "source_column", 1) or 1)
+    return SourceSpan(line=line, col=col)
+
+
+def _build_rule_block(
+    node: Any, warnings: list[ParseWarning]
+) -> RuleBlock | None:
+    """Turn a tinycss2 qualified-rule into a `RuleBlock`.
+
+    Task 8 only produces an empty-selector, empty-declaration block. Later
+    tasks (9-11) populate the selectors and declarations.
+    """
+    return RuleBlock(
+        selectors=(),
+        declarations=(),
+        nested_blocks=(),
+        span=_span(node),
+    )
+
+
+def _build_unknown_at_rule(node: Any) -> UnknownAtRule:
+    name: str = str(
+        getattr(node, "lower_at_keyword", None) or getattr(node, "at_keyword", "")
+    )
+    prelude = tinycss2.serialize(getattr(node, "prelude", []) or [])
+    block = ""
+    content = getattr(node, "content", None)
+    if content is not None:
+        block = tinycss2.serialize(content)
+    return UnknownAtRule(
+        name=name,
+        prelude_text=prelude,
+        block_text=block,
+        span=_span(node),
+    )
