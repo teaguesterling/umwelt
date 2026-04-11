@@ -14,6 +14,7 @@ from typing import Any
 import tinycss2
 
 from umwelt.ast import (
+    Declaration,
     ParseWarning,
     RuleBlock,
     SourceSpan,
@@ -100,15 +101,75 @@ def _build_rule_block(
     node: Any, warnings: list[ParseWarning], source_path: Path | None = None
 ) -> RuleBlock | None:
     prelude = list(getattr(node, "prelude", []) or [])
-    try:
-        selectors = parse_selector_list(prelude, source_path=source_path)
-    except ViewParseError:
-        raise
+    content = list(getattr(node, "content", []) or [])
+    selectors = parse_selector_list(prelude, source_path=source_path)
+    declarations = _parse_declarations(content, source_path)
     return RuleBlock(
         selectors=selectors,
-        declarations=(),  # Task 11 populates declarations
+        declarations=declarations,
         nested_blocks=(),
         span=_span(node),
+    )
+
+
+def _parse_declarations(
+    content: list[Any], source_path: Path | None
+) -> tuple[Declaration, ...]:
+    """Parse the content of a qualified-rule block into Declaration tuples."""
+    if not content:
+        return ()
+    decl_nodes = tinycss2.parse_declaration_list(
+        content, skip_comments=True, skip_whitespace=True
+    )
+    out: list[Declaration] = []
+    for node in decl_nodes:
+        if _is_parse_error(node):
+            raise _parse_error_to_view_error(node, source_path)
+        node_type = getattr(node, "type", None)
+        if node_type != "declaration":
+            # At-rules inside declaration blocks are preserved as unknown
+            # but v0.1 doesn't expose them through the RuleBlock; skip for now.
+            continue
+        name: str = str(getattr(node, "lower_name", None) or getattr(node, "name", ""))
+        values = _split_declaration_values(
+            list(getattr(node, "value", []) or [])
+        )
+        out.append(
+            Declaration(
+                property_name=name,
+                values=tuple(values),
+                span=_span(node),
+            )
+        )
+    return tuple(out)
+
+
+def _split_declaration_values(tokens: list[Any]) -> list[str]:
+    """Split a declaration value token list on commas and serialize each part."""
+    groups: list[list[Any]] = [[]]
+    for t in tokens:
+        if _is_literal(t, ","):
+            groups.append([])
+        else:
+            groups[-1].append(t)
+    result: list[str] = []
+    for g in groups:
+        text = str(tinycss2.serialize(g).strip())
+        if text:
+            result.append(_unquote(text))
+    return result
+
+
+def _unquote(text: str) -> str:
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        return text[1:-1]
+    return text
+
+
+def _is_literal(token: Any, value: str) -> bool:
+    return (
+        getattr(token, "type", None) == "literal"
+        and getattr(token, "value", None) == value
     )
 
 
