@@ -53,13 +53,20 @@ class EnvEntity:
 
 
 @dataclass(frozen=True)
-class MountEntity:
-    """A bind mount in the workspace."""
+class WorldEntity:
+    """A named environment (root of the world hierarchy)."""
 
-    src: str
-    dst: str
+    name: str
+
+
+@dataclass(frozen=True)
+class MountEntity:
+    """A bind mount or tmpfs in the workspace."""
+
+    path: str
+    source: str | None = None
     type: str = "bind"
-    writable: bool = False
+    readonly: bool = False
 
 
 @dataclass(frozen=True)
@@ -102,3 +109,20 @@ class JobEntity:
     id: str
     state: str = "pending"
     delegate: bool = False
+
+
+@dataclass(frozen=True)
+class InferencerEntity:
+    """A language model / inferencer."""
+
+    model: str | None = None
+    kit: str | None = None
+    temperature: float | None = None
+
+
+@dataclass(frozen=True)
+class ExecutorEntity:
+    """An executor (tool runner)."""
+
+    tool_name: str | None = None
+    altitude: str | None = None

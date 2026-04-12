@@ -21,6 +21,7 @@ def register_sandbox_vocabulary() -> None:
     _register_world()
     _register_capability()
     _register_state()
+    _register_actor()
     _register_validators()
     _register_sugar()
 
@@ -43,6 +44,16 @@ def _register_world() -> None:
         name="world",
         description="Entities the actor can couple to: filesystem, network, environment, resources.",
         ma_concept="world_coupling_axis",
+    )
+
+    register_entity(
+        taxon="world",
+        name="world",
+        attributes={
+            "name": AttrSchema(type=str, description="Environment name (used as #id in selectors)"),
+        },
+        description="A named environment — the root of the world hierarchy. world#dev, world#ci, etc.",
+        category="environment",
     )
 
     register_entity(
@@ -103,12 +114,13 @@ def _register_world() -> None:
     register_entity(
         taxon="world",
         name="mount",
+        parent="world",
         attributes={
-            "src": AttrSchema(type=str, required=True),
-            "dst": AttrSchema(type=str, required=True),
-            "type": AttrSchema(type=str),
+            "path": AttrSchema(type=str, required=True, description="Mount destination path inside the workspace"),
+            "source": AttrSchema(type=str, description="Host path or URL this mount maps from"),
+            "type": AttrSchema(type=str, description="Mount type: bind, tmpfs, overlay"),
         },
-        description="A bind mount in the workspace.",
+        description="A bind mount or tmpfs in the workspace.",
         category="workspace",
     )
 
@@ -123,6 +135,9 @@ def _register_world() -> None:
     register_property(taxon="world", entity="network", name="allow", value_type=bool, description="Whether this endpoint is allowed.")
     register_property(taxon="world", entity="env", name="allow", value_type=bool, description="Whether this env var is passed through.")
     register_property(taxon="world", entity="mount", name="size", value_type=str, description="Mount size limit.")
+    register_property(taxon="world", entity="mount", name="source", value_type=str, description="Host path or URL this mount maps from.")
+    register_property(taxon="world", entity="mount", name="readonly", value_type=bool, description="Whether the mount is read-only.")
+    register_property(taxon="world", entity="mount", name="type", value_type=str, description="Mount type: bind, tmpfs, overlay.")
 
 
 def _register_capability() -> None:
@@ -208,3 +223,37 @@ def _register_state() -> None:
     register_property(taxon="state", entity="hook", name="timeout", value_type=str, description="Timeout for hook execution.")
     register_property(taxon="state", entity="job", name="inherit-budget", value_type=float, description="Fraction of parent budget to inherit.")
     register_property(taxon="state", entity="budget", name="limit", value_type=str, description="Budget limit value.")
+
+
+def _register_actor() -> None:
+    register_taxon(
+        name="actor",
+        description="The four Ma actors: principal, inferencer, executor, harness.",
+        ma_concept="four_actor_taxonomy",
+    )
+
+    register_entity(
+        taxon="actor",
+        name="inferencer",
+        attributes={
+            "model": AttrSchema(type=str, description="Model identifier (e.g. claude-sonnet-4-6)"),
+            "kit": AttrSchema(type=str, description="Kit this inferencer uses"),
+            "temperature": AttrSchema(type=float, description="Sampling temperature"),
+        },
+        description="The language model / inferencer.",
+        category="actors",
+    )
+
+    register_entity(
+        taxon="actor",
+        name="executor",
+        attributes={
+            "tool_name": AttrSchema(type=str, description="Tool this executor represents"),
+            "altitude": AttrSchema(type=str, description="Enforcement altitude: os, language, semantic, conversational"),
+        },
+        description="An executor (tool runner).",
+        category="actors",
+    )
+
+    register_property(taxon="actor", entity="inferencer", name="model", value_type=str, description="Model to use for this inferencer.")
+    register_property(taxon="actor", entity="inferencer", name="temperature", value_type=float, description="Sampling temperature.")
