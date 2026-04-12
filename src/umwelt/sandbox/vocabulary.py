@@ -12,6 +12,7 @@ from umwelt.registry import (
     register_entity,
     register_property,
     register_taxon,
+    register_validator,
 )
 
 
@@ -20,6 +21,14 @@ def register_sandbox_vocabulary() -> None:
     _register_world()
     _register_capability()
     _register_state()
+    _register_validators()
+
+
+def _register_validators() -> None:
+    from umwelt.sandbox.validators import CapabilityValidator, WorldValidator
+
+    register_validator(taxon="world", validator=WorldValidator())
+    register_validator(taxon="capability", validator=CapabilityValidator())
 
 
 def _register_world() -> None:
