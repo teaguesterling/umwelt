@@ -126,3 +126,12 @@ class ExecutorEntity:
 
     tool_name: str | None = None
     altitude: str | None = None
+
+
+@dataclass(frozen=True)
+class ExecEntity:
+    """An executable binary available inside the jail."""
+
+    name: str | None = None
+    path: str | None = None
+    search_path: str | None = None

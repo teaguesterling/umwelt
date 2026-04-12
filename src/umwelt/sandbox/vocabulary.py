@@ -139,6 +139,33 @@ def _register_world() -> None:
     register_property(taxon="world", entity="mount", name="readonly", value_type=bool, description="Whether the mount is read-only.")
     register_property(taxon="world", entity="mount", name="type", value_type=str, description="Mount type: bind, tmpfs, overlay.")
 
+    register_entity(
+        taxon="world",
+        name="exec",
+        parent="world",
+        attributes={
+            "name": AttrSchema(type=str, description="Executable name (e.g. bash, python3)"),
+            "path": AttrSchema(type=str, description="Absolute path to binary inside the jail"),
+        },
+        description="An executable binary available inside the jail environment.",
+        category="executables",
+    )
+
+    register_property(
+        taxon="world",
+        entity="exec",
+        name="path",
+        value_type=str,
+        description="Absolute path to the binary inside the jail.",
+    )
+    register_property(
+        taxon="world",
+        entity="exec",
+        name="search-path",
+        value_type=str,
+        description="Colon-separated PATH directories for the jail. Default: /bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin",
+    )
+
 
 def _register_capability() -> None:
     register_taxon(
@@ -177,6 +204,13 @@ def _register_capability() -> None:
     register_property(taxon="capability", entity="tool", name="allow-pattern", value_type=list, comparison="pattern-in", description="Glob patterns for allowed invocations.")
     register_property(taxon="capability", entity="tool", name="deny-pattern", value_type=list, comparison="pattern-in", description="Glob patterns for denied invocations.")
     register_property(taxon="capability", entity="kit", name="allow", value_type=bool, description="Whether the kit is permitted.")
+    register_property(
+        taxon="capability",
+        entity="tool",
+        name="exec",
+        value_type=str,
+        description="Name of the executable entity this tool delegates to (e.g. 'bash').",
+    )
 
 
 def _register_state() -> None:
