@@ -8,6 +8,7 @@ positions, and produces the final `View`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,29 @@ from umwelt.selector.parse import parse_selector_list
 
 # tinycss2's ParseError node doesn't expose a typed class we can isinstance-check
 # cleanly across versions, so we sniff by attribute instead.
+
+# ---------------------------------------------------------------------------
+# Sugar registry — allows sandbox (and other consumers) to register at-rule
+# transformers that run during parsing, before taxon-scope resolution.
+# ---------------------------------------------------------------------------
+
+SugarTransformer = Callable[..., list[RuleBlock]]
+
+_SUGAR_REGISTRY: dict[str, SugarTransformer] = {}
+
+
+def register_sugar(name: str, transformer: SugarTransformer) -> None:
+    """Register an at-rule name as sugar that desugars during parsing."""
+    _SUGAR_REGISTRY[name.lower()] = transformer
+
+
+def clear_sugar() -> None:
+    """Clear sugar registry. For test isolation."""
+    _SUGAR_REGISTRY.clear()
+
+
+def _is_sugar(name: str) -> bool:
+    return name.lower() in _SUGAR_REGISTRY
 
 
 def parse(source: str | Path, *, validate: bool = True) -> View:
@@ -70,7 +94,11 @@ def parse(source: str | Path, *, validate: bool = True) -> View:
                 or getattr(node, "at_keyword", "")
                 or ""
             )
-            if _is_taxon_scope(at_name):
+            if _is_sugar(at_name):
+                transformer = _SUGAR_REGISTRY[at_name.lower()]
+                sugar_rules = transformer(node, warnings, source_path)
+                rules.extend(sugar_rules)
+            elif _is_taxon_scope(at_name):
                 rules.extend(
                     _expand_taxon_scope(node, warnings, source_path, at_name)
                 )

@@ -17,11 +17,18 @@ from umwelt.registry import (
 
 
 def register_sandbox_vocabulary() -> None:
-    """Register all sandbox taxa, entities, and properties."""
+    """Register all sandbox taxa, entities, and properties, and sugar transformers."""
     _register_world()
     _register_capability()
     _register_state()
     _register_validators()
+    _register_sugar()
+
+
+def _register_sugar() -> None:
+    from umwelt.sandbox.desugar import register_sandbox_sugar
+
+    register_sandbox_sugar()
 
 
 def _register_validators() -> None:
