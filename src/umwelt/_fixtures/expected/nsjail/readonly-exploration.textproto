@@ -1,0 +1,13 @@
+name: "umwelt-sandbox"
+hostname: "umwelt"
+
+time_limit: 60
+
+clone_newnet: true
+
+mount {
+  src: "/workspace/src/auth/login.py"
+  dst: "/workspace/src/auth/login.py"
+  is_bind: true
+  rw: false
+}

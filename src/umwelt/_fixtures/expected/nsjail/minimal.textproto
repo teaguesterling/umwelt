@@ -1,0 +1,9 @@
+name: "umwelt-sandbox"
+hostname: "umwelt"
+
+mount {
+  src: "/workspace/hello.txt"
+  dst: "/workspace/hello.txt"
+  is_bind: true
+  rw: true
+}
