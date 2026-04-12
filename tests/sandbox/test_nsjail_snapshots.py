@@ -11,12 +11,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from umwelt.cascade.resolver import ResolvedView
 from umwelt.sandbox.compilers.nsjail import NsjailCompiler
 from umwelt.sandbox.entities import (
-    EnvEntity,
     FileEntity,
     NetworkEntity,
     ResourceEntity,

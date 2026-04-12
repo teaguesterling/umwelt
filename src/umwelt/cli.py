@@ -15,12 +15,44 @@ from umwelt.parser import parse
 
 
 def _load_default_vocabulary() -> None:
-    """Auto-load the sandbox vocabulary if available."""
+    """Auto-load the sandbox vocabulary and compilers if available."""
     try:
+        from umwelt.sandbox.compilers import register_sandbox_compilers
         from umwelt.sandbox.desugar import register_sandbox_sugar
         from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
         register_sandbox_vocabulary()
         register_sandbox_sugar()
+        register_sandbox_compilers()
+    except ImportError:
+        pass
+
+
+def _register_matchers(view_file: Path) -> None:
+    """Register filesystem/capability/state matchers using the view file's directory.
+
+    Called before resolve() to give the selector engine entity sources.
+    Silently skips if matchers are already registered (e.g. in tests that
+    pre-register their own matchers).
+    """
+    import contextlib
+
+    try:
+        from umwelt.errors import RegistryError
+        from umwelt.registry import register_matcher
+        from umwelt.sandbox.actor_matcher import ActorMatcher
+        from umwelt.sandbox.capability_matcher import CapabilityMatcher
+        from umwelt.sandbox.state_matcher import StateMatcher
+        from umwelt.sandbox.world_matcher import WorldMatcher
+
+        base_dir = view_file.resolve().parent
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="world", matcher=WorldMatcher(base_dir=base_dir))
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="capability", matcher=CapabilityMatcher())
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="state", matcher=StateMatcher())
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="actor", matcher=ActorMatcher())
     except ImportError:
         pass
 
@@ -63,6 +95,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
     except ViewError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    _register_matchers(Path(args.file))
     print(format_dry_run(view))
     return 0
 
@@ -77,8 +110,89 @@ def _cmd_check(args: argparse.Namespace) -> int:
     except ViewError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    _register_matchers(Path(args.file))
     print(format_check(view))
     return 0
+
+
+def _cmd_compile(args: argparse.Namespace) -> int:
+    _load_default_vocabulary()
+    try:
+        view = parse(Path(args.file))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    _register_matchers(Path(args.file))
+
+    from umwelt import compilers as compiler_registry
+    from umwelt.cascade.resolver import resolve
+    from umwelt.errors import RegistryError
+
+    try:
+        compiler = compiler_registry.get(args.target)
+    except RegistryError:
+        available = compiler_registry.available()
+        if available:
+            print(
+                f"error: no compiler registered for target {args.target!r}. "
+                f"Available: {', '.join(available)}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"error: no compiler registered for target {args.target!r}. "
+                "No compilers are registered.",
+                file=sys.stderr,
+            )
+        return 1
+
+    resolved = resolve(view)
+    output = compiler.compile(resolved)
+    if isinstance(output, str):
+        print(output, end="")
+    elif isinstance(output, list):
+        for item in output:
+            print(item)
+    elif isinstance(output, dict):
+        import json
+        print(json.dumps(output, indent=2))
+    return 0
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    _load_default_vocabulary()
+    try:
+        view = parse(Path(args.file))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    _register_matchers(Path(args.file))
+
+    import shutil
+    if shutil.which("nsjail") is None:
+        print("error: nsjail binary not found on PATH", file=sys.stderr)
+        return 1
+
+    from umwelt.cascade.resolver import resolve
+    from umwelt.sandbox.runners.nsjail import run_in_nsjail
+
+    resolved = resolve(view)
+    command = args.command
+    workspace_root = getattr(args, "workspace_root", "/workspace")
+    result = run_in_nsjail(resolved, command, workspace_root=workspace_root)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    return result.returncode
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -109,6 +223,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_dry.add_argument("file", help="path to a .umw view file")
     p_dry.set_defaults(func=_cmd_dry_run)
+
+    p_compile = subparsers.add_parser(
+        "compile", help="compile a view to a target's native config format"
+    )
+    p_compile.add_argument("file", help="path to a .umw view file")
+    p_compile.add_argument(
+        "--target", required=True, help="compiler target name (e.g. nsjail)"
+    )
+    p_compile.set_defaults(func=_cmd_compile)
+
+    p_run = subparsers.add_parser(
+        "run", help="compile a view and run a command inside the sandbox"
+    )
+    p_run.add_argument("file", help="path to a .umw view file")
+    p_run.add_argument(
+        "--target", default="nsjail", help="compiler/runner target (default: nsjail)"
+    )
+    p_run.add_argument(
+        "--workspace-root", default="/workspace", dest="workspace_root",
+        help="workspace root inside the sandbox (default: /workspace)",
+    )
+    p_run.add_argument(
+        "command", nargs=argparse.REMAINDER, help="command to run inside the sandbox"
+    )
+    p_run.set_defaults(func=_cmd_run)
 
     return parser
 

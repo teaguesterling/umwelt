@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import tempfile
@@ -44,7 +45,7 @@ def run_in_nsjail(
 
     try:
         result = subprocess.run(
-            ["nsjail", "--config", config_path, "--"] + command,
+            ["nsjail", "--config", config_path, "--", *command],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -70,7 +71,5 @@ def run_in_nsjail(
             config_path=config_path,
         )
     finally:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(config_path)
-        except OSError:
-            pass

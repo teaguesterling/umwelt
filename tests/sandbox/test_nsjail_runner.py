@@ -59,7 +59,11 @@ def test_runner_config_contains_textproto():
         captured_config_path.append(args[2])
         # Read the config before it gets deleted
         import os
-        config_content = open(args[2]).read() if os.path.exists(args[2]) else ""
+        if os.path.exists(args[2]):
+            with open(args[2]) as fh:
+                config_content = fh.read()
+        else:
+            config_content = ""
         captured_config_path.append(config_content)
         result = MagicMock()
         result.returncode = 0
@@ -135,7 +139,8 @@ def test_runner_respects_workspace_root():
     def capture_config(args, **kwargs):
         import os
         if os.path.exists(args[2]):
-            captured.append(open(args[2]).read())
+            with open(args[2]) as fh:
+                captured.append(fh.read())
         result = MagicMock()
         result.returncode = 0
         result.stdout = ""

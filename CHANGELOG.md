@@ -6,6 +6,33 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-12
+
+The first enforcement compiler milestone. The nsjail compiler translates
+resolved umwelt views into nsjail protobuf textproto configs that nsjail
+accepts via `--config`.
+
+### Added
+
+- **nsjail compiler** (`umwelt.sandbox.compilers.nsjail`): translates
+  OS-altitude constructs from a resolved view into nsjail textproto.
+  File entities → bind mounts (rw based on `editable`), network `deny: "*"` →
+  `clone_newnet: true`, resource limits → `rlimit_as`/`rlimit_cpu`/
+  `rlimit_nofile`/`time_limit`, env `allow: true` → `envar` passthrough.
+  Non-OS constructs (tools, hooks, actor qualifiers) are silently dropped.
+- **Value parser** (`umwelt.sandbox.compilers._value_parser`): converts
+  declaration values like `"512MB"` → 512 (MB int), `"5m"` → 300 (seconds),
+  `"64MB"` → `"64M"` (tmpfs string).
+- **nsjail runner** (`umwelt.sandbox.runners.nsjail`): convenience wrapper
+  that compiles a view, writes a temp config, and invokes the nsjail binary
+  via `subprocess.run`. Returns `NsjailResult` with returncode/stdout/stderr.
+- **CLI `compile` subcommand**: `umwelt compile --target nsjail view.umw`
+  resolves the view and prints the textproto to stdout.
+- **CLI `run` subcommand**: `umwelt run --target nsjail view.umw -- cmd`
+  compiles + runs a command inside nsjail (requires nsjail on PATH).
+- **Snapshot fixtures** (`_fixtures/expected/nsjail/`): expected textproto
+  outputs for minimal, auth-fix, and readonly-exploration views.
+
 ## [0.1.0] — 2026-04-11
 
 The sandbox consumer milestone. The vocabulary-agnostic core from v0.1.0-core

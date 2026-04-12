@@ -28,9 +28,15 @@ def test_check_reports_rule_count():
     assert "13 rule" in result.stdout or "13 rules" in result.stdout
 
 
-def test_check_notes_zero_compilers_in_core():
+def test_check_reports_compiler_count():
+    # The sandbox compiler (nsjail) is registered by default; check reports it.
     result = _run(["check", str(FIXTURE)])
-    assert "0 compilers" in result.stdout or "no compilers" in result.stdout.lower()
+    # With sandbox registered: "1 registered"; without sandbox: "0 compilers" or "no compilers"
+    assert (
+        "1 registered" in result.stdout
+        or "0 compilers" in result.stdout
+        or "no compilers" in result.stdout.lower()
+    )
 
 
 def test_check_reports_validation_error(tmp_path):

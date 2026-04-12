@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from umwelt.cascade.resolver import ResolvedView
+from umwelt.compilers.protocol import Altitude
 from umwelt.sandbox.compilers._value_parser import (
     parse_memory_mb,
     parse_size_for_tmpfs,
@@ -44,9 +45,9 @@ class NsjailConfig:
 class NsjailCompiler:
     """Compiler protocol implementation for nsjail."""
 
-    target_name = "nsjail"
-    target_format = "textproto"
-    altitude = "os"
+    target_name: str = "nsjail"
+    target_format: str = "textproto"
+    altitude: Altitude = "os"
 
     def compile(self, view: ResolvedView, workspace_root: str = "/workspace") -> str:
         cfg = NsjailConfig()
@@ -77,10 +78,7 @@ class NsjailCompiler:
     ) -> None:
         path = getattr(entity, "path", "")
         editable = props.get("editable", "false").lower() == "true"
-        if path.startswith("/"):
-            dst = path
-        else:
-            dst = f"{root}/{path}"
+        dst = path if path.startswith("/") else f"{root}/{path}"
         src = str(getattr(entity, "abs_path", path))
         cfg.mounts.append({
             "src": src,
