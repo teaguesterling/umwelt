@@ -2,28 +2,18 @@
 
 from __future__ import annotations
 
-import sys
-
 from umwelt.registry import (
     get_entity,
     get_property,
     get_taxon,
     registry_scope,
 )
+from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
 
 def _register_sandbox() -> None:
-    """Register sandbox vocabulary in the current registry scope.
-
-    On first call (before any sandbox module is cached), imports umwelt.sandbox
-    so that __init__.py fires into the active scope. On subsequent calls (module
-    already cached), calls register_sandbox_vocabulary() directly.
-    """
-    if "umwelt.sandbox" not in sys.modules:
-        import umwelt.sandbox  # noqa: F401  # fires __init__ into current scope
-    else:
-        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-        register_sandbox_vocabulary()
+    """Register sandbox vocabulary in the current registry scope."""
+    register_sandbox_vocabulary()
 
 
 def test_world_taxon_registered():
