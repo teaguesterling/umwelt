@@ -9,7 +9,7 @@ from umwelt.errors import (
     ViewValidationError,
 )
 
-__version__ = "0.1.0-core"
+__version__ = "0.1.0"
 
 __all__ = [
     "ParseWarning",

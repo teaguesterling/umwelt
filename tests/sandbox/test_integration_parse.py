@@ -1,11 +1,11 @@
 """Integration tests: every fixture parses without errors."""
 
 from pathlib import Path
-import pytest
+
 from umwelt.parser import parse
 from umwelt.registry import registry_scope
-from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 from umwelt.sandbox.desugar import register_sandbox_sugar
+from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
 FIXTURES = Path(__file__).resolve().parents[2] / "src" / "umwelt" / "_fixtures"
 

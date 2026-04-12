@@ -17,8 +17,8 @@ from umwelt.parser import parse
 def _load_default_vocabulary() -> None:
     """Auto-load the sandbox vocabulary if available."""
     try:
-        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
         from umwelt.sandbox.desugar import register_sandbox_sugar
+        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
         register_sandbox_vocabulary()
         register_sandbox_sugar()
     except ImportError:

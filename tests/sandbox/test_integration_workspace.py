@@ -10,9 +10,9 @@ from umwelt.sandbox.capability_matcher import CapabilityMatcher
 from umwelt.sandbox.entities import ToolEntity
 from umwelt.sandbox.state_matcher import StateMatcher
 from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-from umwelt.sandbox.world_matcher import WorldMatcher
 from umwelt.sandbox.workspace.builder import WorkspaceBuilder
 from umwelt.sandbox.workspace.writeback import Applied, WriteBack
+from umwelt.sandbox.world_matcher import WorldMatcher
 
 FIXTURES = Path(__file__).resolve().parents[2] / "src" / "umwelt" / "_fixtures"
 

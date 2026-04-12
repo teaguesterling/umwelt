@@ -6,6 +6,39 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-04-11
+
+The sandbox consumer milestone. The vocabulary-agnostic core from v0.1.0-core
+is unchanged; this release adds the first real consumer (`umwelt.sandbox`) and
+ships it as the default CLI vocabulary.
+
+### Added
+
+- **Sandbox vocabulary**: `world` taxon (file, dir, resource, network, env,
+  mount), `capability` taxon (tool, kit), `state` taxon (hook, job, budget).
+  Registered automatically by the CLI at startup.
+- **WorldMatcher**: resolves file/dir entities from the real filesystem using
+  path-attribute selectors (`path^=`, `path$=`, `path*=`, `name=`) and the
+  `:glob()` pseudo-class.
+- **CapabilityMatcher** and **StateMatcher**: in-memory matchers for tool/kit
+  and hook/job/budget entities respectively.
+- **Validators**: `WorldValidator` (editable/visible type checks),
+  `CapabilityValidator` (allow/max-level type checks).
+- **WorkspaceBuilder**: materializes a virtual workspace from a resolved view —
+  editable files become copies, read-only files become symlinks. Path-traversal
+  guard rejects escapes outside `base_dir`.
+- **WriteBack**: reconciles delegate edits back to real files. Detects and
+  classifies each entry as `NoOp`, `Applied`, `Rejected`, or `Conflict`.
+  Strict mode raises `ViewViolation` on any rejected or conflicted entry.
+- **HookDispatcher**: runs shell commands for lifecycle hook rules with timeout
+  and working-directory support.
+- **At-rule sugar desugaring**: `@source`, `@tools`, `@after-change`,
+  `@network`, `@budget`, `@env` transform to entity-selector form at parse time.
+- **Reference fixtures**: `minimal.umw`, `readonly-exploration.umw`,
+  `auth-fix.umw`, `actor-conditioned.umw` under `src/umwelt/_fixtures/`.
+- **CLI**: replaced `UMWELT_PRELOAD_TOY` hack with `_load_default_vocabulary()`
+  that auto-imports `umwelt.sandbox` if available.
+
 ## [0.1.0-core] — 2026-04-11
 
 The vocabulary-agnostic core of umwelt. No concrete enforcement compilers

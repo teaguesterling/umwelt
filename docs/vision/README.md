@@ -125,7 +125,7 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-**v0.1-core landed** on 2026-04-10. The vocabulary-agnostic core is shipping: parser, AST, plugin registry, selector engine with cross-taxon compound selector support, cascade resolver, compiler protocol, and CLI. No concrete compilers yet; v0.1-sandbox registers the first-party `world`/`capability`/`state` vocabulary and ships the workspace runtime, and v0.2 adds the nsjail compiler. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
+**v0.1.0 shipped.** Core + sandbox consumer are complete: vocabulary-agnostic core (parser, AST, plugin registry, selector engine, cascade resolver, compiler protocol, CLI) plus the first-party `world`/`capability`/`state` vocabulary, workspace builder, writeback, hook dispatcher, and at-rule sugar desugaring. No concrete enforcement compilers yet; v0.2 adds the nsjail compiler. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
 
 ## Document map
 

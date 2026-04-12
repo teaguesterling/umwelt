@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-FIXTURE = Path(__file__).parent / "fixtures" / "toy.umw"
+_FIXTURES = Path(__file__).resolve().parents[2] / "src" / "umwelt" / "_fixtures"
+FIXTURE = _FIXTURES / "auth-fix.umw"
 
 
 def _run(args: list[str]) -> subprocess.CompletedProcess:
-    env = os.environ.copy()
-    env["UMWELT_PRELOAD_TOY"] = "1"
     return subprocess.run(
         [sys.executable, "-m", "umwelt.cli", *args],
         capture_output=True,
         text=True,
-        env=env,
     )
 
 
@@ -28,7 +25,7 @@ def test_check_clean_fixture_exits_zero():
 
 def test_check_reports_rule_count():
     result = _run(["check", str(FIXTURE)])
-    assert "3 rule" in result.stdout or "3 rules" in result.stdout
+    assert "13 rule" in result.stdout or "13 rules" in result.stdout
 
 
 def test_check_notes_zero_compilers_in_core():
