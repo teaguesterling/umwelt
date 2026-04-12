@@ -9,7 +9,6 @@ from umwelt.parser import clear_sugar, parse
 from umwelt.registry import registry_scope
 from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
-
 # ---------------------------------------------------------------------------
 # Fixture: a registry scope with sandbox vocab + sugar registered
 # ---------------------------------------------------------------------------

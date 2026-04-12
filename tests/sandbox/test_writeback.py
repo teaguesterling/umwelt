@@ -46,13 +46,13 @@ def _entry(
 
 
 def test_writable_unchanged_is_noop(tmp_path):
-    entry, real, ws = _entry(tmp_path, writable=True)
+    entry, _real, ws = _entry(tmp_path, writable=True)
     result = WriteBack().apply_entry(entry, ws)
     assert isinstance(result, NoOp)
 
 
 def test_writable_changed_real_unchanged_is_applied(tmp_path):
-    entry, real, ws = _entry(tmp_path, writable=True)
+    entry, _real, ws = _entry(tmp_path, writable=True)
     (ws / "f.py").write_text("modified by delegate")
     result = WriteBack().apply_entry(entry, ws)
     assert isinstance(result, Applied)
@@ -75,7 +75,7 @@ def test_writable_unchanged_real_changed_is_conflict(tmp_path):
 
 
 def test_readonly_unchanged_is_noop(tmp_path):
-    entry, real, ws = _entry(tmp_path, writable=False)
+    entry, _real, ws = _entry(tmp_path, writable=False)
     result = WriteBack().apply_entry(entry, ws)
     assert isinstance(result, NoOp)
 
