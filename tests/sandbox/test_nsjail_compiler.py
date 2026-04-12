@@ -204,7 +204,7 @@ def test_full_worked_example():
     assert "clone_newnet: true" in output
     assert "rlimit_as: 512" in output
     # Three mounts: src/auth (rw), src/common (ro), /tmp/work (rw), plus tmpfs /tmp
-    assert output.count("mount {") == 4
+    assert output.count("mount {") == 12  # 8 system + 4 view
     assert 'envar: "CI"' in output
     # Tools and hooks NOT in output
     assert "Read" not in output

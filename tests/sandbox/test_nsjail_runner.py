@@ -170,6 +170,6 @@ def test_runner_respects_workspace_root():
 def test_integration_nsjail_echo():
     """Integration: run a real echo command inside nsjail."""
     rv = ResolvedView()
-    result = run_in_nsjail(rv, ["echo", "integration-ok"])
+    result = run_in_nsjail(rv, ["/bin/echo", "integration-ok"])
     assert result.returncode == 0
     assert "integration-ok" in result.stdout
