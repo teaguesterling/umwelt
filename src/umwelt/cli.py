@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from pprint import pformat
@@ -15,41 +14,19 @@ from umwelt.inspect_util import format_inspection
 from umwelt.parser import parse
 
 
-def _preload_toy_taxonomy_if_requested() -> None:
-    """For tests: if UMWELT_PRELOAD_TOY=1, install the toy taxonomy.
-
-    The CLI is otherwise vocabulary-agnostic — it parses whatever taxa
-    are currently registered, which in production is whatever the
-    consumer imported. This hook is solely for test runs.
-    """
-    if os.environ.get("UMWELT_PRELOAD_TOY") != "1":
-        return
+def _load_default_vocabulary() -> None:
+    """Auto-load the sandbox vocabulary if available."""
     try:
-        # We can't import from tests/ at runtime in production; guard.
-        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-        from tests.core.helpers.toy_taxonomy import (
-            ToyShapesMatcher,
-            ToyThing,
-            install_toy_taxonomy,
-        )
-
-        things_env = os.environ.get("UMWELT_PRELOAD_TOY_THINGS", "")
-        things: list[ToyThing] = []
-        for entry in filter(None, things_env.split(",")):
-            if ":" not in entry:
-                continue
-            ident, color = entry.split(":", 1)
-            things.append(
-                ToyThing(type_name="thing", id=ident.strip(), color=color.strip())
-            )
-        shapes = ToyShapesMatcher(things=things)
-        install_toy_taxonomy(shapes_matcher=shapes)
-    except Exception:
+        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
+        from umwelt.sandbox.desugar import register_sandbox_sugar
+        register_sandbox_vocabulary()
+        register_sandbox_sugar()
+    except ImportError:
         pass
 
 
 def _cmd_parse(args: argparse.Namespace) -> int:
-    _preload_toy_taxonomy_if_requested()
+    _load_default_vocabulary()
     try:
         view = parse(Path(args.file))
     except FileNotFoundError as exc:
@@ -63,7 +40,7 @@ def _cmd_parse(args: argparse.Namespace) -> int:
 
 
 def _cmd_inspect(args: argparse.Namespace) -> int:
-    _preload_toy_taxonomy_if_requested()
+    _load_default_vocabulary()
     try:
         view = parse(Path(args.file))
     except FileNotFoundError as exc:
@@ -77,7 +54,7 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
 
 
 def _cmd_dry_run(args: argparse.Namespace) -> int:
-    _preload_toy_taxonomy_if_requested()
+    _load_default_vocabulary()
     try:
         view = parse(Path(args.file))
     except FileNotFoundError as exc:
@@ -91,7 +68,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
-    _preload_toy_taxonomy_if_requested()
+    _load_default_vocabulary()
     try:
         view = parse(Path(args.file))
     except FileNotFoundError as exc:

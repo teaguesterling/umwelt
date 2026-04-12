@@ -1,13 +1,14 @@
 /* auth-fix: canonical sandbox example — fix auth, read everything else */
-file[path^="src/auth/"] { editable: true; }
+/* broad rules first, specific overrides last — CSS cascade: last wins on equal specificity */
 file[path^="src/"] { editable: false; }
 file[path^="tests/auth/"] { editable: false; }
+file[path^="src/auth/"] { editable: true; }
+tool[name="Bash"] { allow: false; }
+tool[name="Write"] { allow: false; }
 tool[name="Read"] { allow: true; }
 tool[name="Edit"] { allow: true; }
 tool[name="Grep"] { allow: true; }
 tool[name="Glob"] { allow: true; }
-tool[name="Bash"] { allow: false; }
-tool[name="Write"] { allow: false; }
 network { deny: "*"; }
 resource[kind="memory"] { limit: 512MB; }
 resource[kind="wall-time"] { limit: 5m; }

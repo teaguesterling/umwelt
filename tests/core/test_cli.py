@@ -2,32 +2,29 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-FIXTURE = Path(__file__).parent / "fixtures" / "toy.umw"
+# Use the sandbox fixture now that the CLI auto-loads the sandbox vocabulary.
+_FIXTURES = Path(__file__).resolve().parents[2] / "src" / "umwelt" / "_fixtures"
+FIXTURE = _FIXTURES / "minimal.umw"
+FIXTURE_AUTH = _FIXTURES / "auth-fix.umw"
 
 
-def _run(args: list[str], env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    env = os.environ.copy()
-    env["UMWELT_PRELOAD_TOY"] = "1"
-    if env_extra:
-        env.update(env_extra)
+def _run(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "umwelt.cli", *args],
         capture_output=True,
         text=True,
-        env=env,
     )
 
 
 def test_parse_prints_ast():
     result = _run(["parse", str(FIXTURE)])
     assert result.returncode == 0, result.stderr
-    assert "thing" in result.stdout
-    assert "paint" in result.stdout
+    assert "file" in result.stdout
+    assert "editable" in result.stdout
 
 
 def test_parse_nonexistent_file():
@@ -39,15 +36,13 @@ def test_parse_nonexistent_file():
 def test_inspect_reports_rule_counts():
     result = _run(["inspect", str(FIXTURE)])
     assert result.returncode == 0, result.stderr
-    assert "3 rules" in result.stdout or "3 rule" in result.stdout
-    assert "shapes" in result.stdout  # taxon name
+    assert "1 rule" in result.stdout
 
 
 def test_inspect_lists_property_names():
-    result = _run(["inspect", str(FIXTURE)])
-    assert result.returncode == 0
-    assert "paint" in result.stdout
-    assert "max-glow" in result.stdout
+    result = _run(["inspect", str(FIXTURE_AUTH)])
+    assert result.returncode == 0, result.stderr
+    assert "editable" in result.stdout
 
 
 def test_parse_syntax_error_exits_nonzero(tmp_path):
