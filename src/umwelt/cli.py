@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from pprint import pformat
 
+from umwelt.check_util import format_check
 from umwelt.errors import ViewError
 from umwelt.inspect_util import format_inspection
 from umwelt.parser import parse
@@ -60,6 +61,20 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_check(args: argparse.Namespace) -> int:
+    _preload_toy_taxonomy_if_requested()
+    try:
+        view = parse(Path(args.file))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(format_check(view))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="umwelt",
@@ -76,6 +91,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_inspect.add_argument("file", help="path to a .umw view file")
     p_inspect.set_defaults(func=_cmd_inspect)
+
+    p_check = subparsers.add_parser(
+        "check", help="parse, validate, and run every registered compiler"
+    )
+    p_check.add_argument("file", help="path to a .umw view file")
+    p_check.set_defaults(func=_cmd_check)
 
     return parser
 
