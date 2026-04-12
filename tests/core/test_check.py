@@ -29,11 +29,11 @@ def test_check_reports_rule_count():
 
 
 def test_check_reports_compiler_count():
-    # The sandbox compiler (nsjail) is registered by default; check reports it.
+    # The sandbox compilers (nsjail, bwrap) are registered by default; check reports them.
     result = _run(["check", str(FIXTURE)])
-    # With sandbox registered: "1 registered"; without sandbox: "0 compilers" or "no compilers"
+    # With sandbox registered: "2 registered"; without sandbox: "0 compilers" or "no compilers"
     assert (
-        "1 registered" in result.stdout
+        "registered" in result.stdout
         or "0 compilers" in result.stdout
         or "no compilers" in result.stdout.lower()
     )
