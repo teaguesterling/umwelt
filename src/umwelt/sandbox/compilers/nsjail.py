@@ -49,8 +49,15 @@ class NsjailCompiler:
     target_format: str = "textproto"
     altitude: Altitude = "os"
 
-    def compile(self, view: ResolvedView, workspace_root: str = "/workspace") -> str:
+    def compile(
+        self,
+        view: ResolvedView,
+        workspace_root: str = "/workspace",
+        include_system_mounts: bool = True,
+    ) -> str:
         cfg = NsjailConfig()
+        if include_system_mounts:
+            _add_system_mounts(cfg)
         self._compile_world(cfg, view, workspace_root)
         return _emit_textproto(cfg)
 
@@ -158,6 +165,29 @@ class NsjailCompiler:
             name = getattr(entity, "name", "")
             if name:
                 cfg.envars.append(name)
+
+
+_SYSTEM_MOUNTS = [
+    {"src": "/bin", "dst": "/bin", "is_bind": True, "rw": False},
+    {"src": "/usr", "dst": "/usr", "is_bind": True, "rw": False},
+    {"src": "/lib", "dst": "/lib", "is_bind": True, "rw": False},
+    {"src": "/lib64", "dst": "/lib64", "is_bind": True, "rw": False},
+    {"src": "/sbin", "dst": "/sbin", "is_bind": True, "rw": False},
+    {"dst": "/proc", "fstype": "proc", "is_bind": False},
+    {"dst": "/dev", "fstype": "tmpfs", "is_bind": False},
+    {"dst": "/tmp", "fstype": "tmpfs", "is_bind": False},
+]
+
+
+def _add_system_mounts(cfg: NsjailConfig) -> None:
+    """Add standard read-only system mounts so jailed processes can execute.
+
+    Without these, the jail has no /bin, /usr, /lib — any command fails with
+    "No such file or directory". These are always read-only bind mounts for
+    system paths, plus proc and tmpfs for /dev and /tmp.
+    """
+    for mount in _SYSTEM_MOUNTS:
+        cfg.mounts.append(dict(mount))
 
 
 def _emit_textproto(cfg: NsjailConfig) -> str:
