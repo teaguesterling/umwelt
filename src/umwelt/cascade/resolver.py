@@ -20,6 +20,54 @@ from umwelt.ast import ComplexSelector, RuleBlock, View
 from umwelt.selector.match import match_complex
 
 
+def _has_world_qualifier(selector: ComplexSelector) -> tuple[bool, str | None]:
+    """Check if a complex selector has a world-type entity with an id.
+
+    Returns (has_world_id, world_name).
+    - (True, "dev") means the selector contains world#dev
+    - (False, None) means no world qualifier found
+    """
+    for part in selector.parts:
+        if (
+            part.selector.type_name == "world"
+            and part.selector.taxon == "world"
+            and part.selector.id_value is not None
+        ):
+            return True, part.selector.id_value
+    return False, None
+
+
+def _filter_rules_by_world_indexed(
+    rules: tuple[RuleBlock, ...],
+    world: str | None,
+) -> list[tuple[int, RuleBlock]]:
+    """Pre-filter rules by world qualifier, preserving original document-order indices.
+
+    Rules where ALL selectors target a different world are excluded.
+    Rules where ANY selector is unscoped or matches the target world
+    are included.
+    """
+    if world is None:
+        return list(enumerate(rules))
+
+    result: list[tuple[int, RuleBlock]] = []
+    for idx, rule in enumerate(rules):
+        dominated_by_wrong_world = True
+        for sel in rule.selectors:
+            has_world, world_name = _has_world_qualifier(sel)
+            if not has_world:
+                # Unscoped selector - always include
+                dominated_by_wrong_world = False
+                break
+            elif world_name == world:
+                # Matches target world
+                dominated_by_wrong_world = False
+                break
+        if not dominated_by_wrong_world:
+            result.append((idx, rule))
+    return result
+
+
 @dataclass(frozen=True)
 class _RuleApplication:
     rule_index: int
@@ -46,12 +94,18 @@ class ResolvedView:
         return list(self._by_taxon.keys())
 
 
-def resolve(view: View, eval_context: Any = None) -> ResolvedView:
-    """Resolve a parsed view through per-taxon CSS cascade."""
+def resolve(view: View, eval_context: Any = None, world: str | None = None) -> ResolvedView:
+    """Resolve a parsed view through per-taxon CSS cascade.
+
+    If world is specified, pre-filter rules to include only those matching
+    the named world (or unscoped global rules).
+    """
+    indexed_rules = _filter_rules_by_world_indexed(view.rules, world)
+
     # 1. Expand the view's rules into one application per (rule, selector),
     # tagged with document order and specificity.
     apps: list[_RuleApplication] = []
-    for r_idx, rule in enumerate(view.rules):
+    for r_idx, rule in indexed_rules:
         for s_idx, sel in enumerate(rule.selectors):
             apps.append(
                 _RuleApplication(
