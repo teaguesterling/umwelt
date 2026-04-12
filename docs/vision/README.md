@@ -125,7 +125,7 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-Pre-implementation. The architecture is specified; the package layout is designed; the v0.1 walking skeleton is being scoped against the core/sandbox split. The first concrete code lands once the v0.1 spec is re-written on top of the policy-layer / entity-model framing.
+**v0.1-core landed** on 2026-04-10. The vocabulary-agnostic core is shipping: parser, AST, plugin registry, selector engine with cross-taxon compound selector support, cascade resolver, compiler protocol, and CLI. No concrete compilers yet; v0.1-sandbox registers the first-party `world`/`capability`/`state` vocabulary and ships the workspace runtime, and v0.2 adds the nsjail compiler. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
 
 ## Document map
 
