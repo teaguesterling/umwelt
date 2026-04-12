@@ -96,7 +96,7 @@ def _cmd_dry_run(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     _register_matchers(Path(args.file))
-    print(format_dry_run(view))
+    print(format_dry_run(view, world=getattr(args, "world", None)))
     return 0
 
 
@@ -150,7 +150,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
             )
         return 1
 
-    resolved = resolve(view)
+    resolved = resolve(view, world=getattr(args, "world", None))
     output = compiler.compile(resolved)
     if isinstance(output, str):
         print(output, end="")
@@ -222,6 +222,10 @@ def build_parser() -> argparse.ArgumentParser:
         "dry-run", help="resolve a view and print per-entity cascaded properties"
     )
     p_dry.add_argument("file", help="path to a .umw view file")
+    p_dry.add_argument(
+        "--world", default=None,
+        help="named world environment to resolve against (e.g. dev, ci)",
+    )
     p_dry.set_defaults(func=_cmd_dry_run)
 
     p_compile = subparsers.add_parser(
@@ -230,6 +234,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_compile.add_argument("file", help="path to a .umw view file")
     p_compile.add_argument(
         "--target", required=True, help="compiler target name (e.g. nsjail)"
+    )
+    p_compile.add_argument(
+        "--world", default=None,
+        help="named world environment to resolve against (e.g. dev, ci)",
     )
     p_compile.set_defaults(func=_cmd_compile)
 

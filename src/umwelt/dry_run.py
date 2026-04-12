@@ -6,9 +6,9 @@ from umwelt.ast import View
 from umwelt.cascade.resolver import resolve
 
 
-def format_dry_run(view: View) -> str:
+def format_dry_run(view: View, world: str | None = None) -> str:
     lines: list[str] = []
-    resolved = resolve(view)
+    resolved = resolve(view, world=world)
     taxa = resolved.taxa()
     if not taxa:
         lines.append("(no matches)")
