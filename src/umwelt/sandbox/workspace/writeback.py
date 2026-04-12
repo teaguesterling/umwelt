@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from umwelt.sandbox.workspace.errors import ViewViolation
 from umwelt.sandbox.workspace.manifest import ManifestEntry, WorkspaceManifest

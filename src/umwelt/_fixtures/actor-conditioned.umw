@@ -1,0 +1,4 @@
+/* actor-conditioned: cross-taxon compound selector example */
+file[path^="src/auth/"] { editable: true; }
+tool[name="Bash"] file[path^="src/auth/"] { editable: false; }
+tool[name="Bash"] { allow-pattern: "git *", "pytest *"; }

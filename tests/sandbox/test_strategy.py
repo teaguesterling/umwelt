@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 
 from umwelt.sandbox.workspace.strategy import (
     SymlinkReadonlyCopyWritable,
@@ -46,7 +45,7 @@ def test_materialize_creates_parent_dirs(tmp_path):
     ws = tmp_path / "ws"
     virtual = ws / "deep" / "path" / "real.py"
     strategy = SymlinkReadonlyCopyWritable()
-    entry = strategy.materialize(real, virtual, writable=True)
+    strategy.materialize(real, virtual, writable=True)
     assert virtual.exists()
 
 

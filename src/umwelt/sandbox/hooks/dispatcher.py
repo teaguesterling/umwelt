@@ -10,9 +10,9 @@ import os
 import shlex
 import subprocess
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 
 @dataclass(frozen=True)
@@ -81,18 +81,16 @@ class HookDispatcher:
             )
         except subprocess.TimeoutExpired as exc:
             duration = time.monotonic() - start
-            stdout = exc.stdout or b""
-            stderr = exc.stderr or b""
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode(errors="replace")
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode(errors="replace")
+            raw_out = exc.stdout or b""
+            raw_err = exc.stderr or b""
+            out_str = raw_out.decode(errors="replace") if isinstance(raw_out, bytes) else raw_out
+            err_str = raw_err.decode(errors="replace") if isinstance(raw_err, bytes) else raw_err
             return HookResult(
                 label=label,
                 command=command,
                 returncode=-1,
-                stdout=stdout,
-                stderr=stderr,
+                stdout=out_str,
+                stderr=err_str,
                 duration_seconds=duration,
                 timed_out=True,
             )

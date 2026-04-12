@@ -1,0 +1,8 @@
+/* read-only exploration view: observe everything, change nothing */
+file[path^="src/"] { editable: false; }
+file[path^="tests/"] { editable: false; }
+tool[name="Read"] { allow: true; }
+tool[name="Grep"] { allow: true; }
+tool[name="Glob"] { allow: true; }
+network { deny: "*"; }
+resource[kind="wall-time"] { limit: 60s; }

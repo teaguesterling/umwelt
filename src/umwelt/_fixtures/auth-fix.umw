@@ -1,0 +1,17 @@
+/* auth-fix: canonical sandbox example — fix auth, read everything else */
+file[path^="src/auth/"] { editable: true; }
+file[path^="src/"] { editable: false; }
+file[path^="tests/auth/"] { editable: false; }
+tool[name="Read"] { allow: true; }
+tool[name="Edit"] { allow: true; }
+tool[name="Grep"] { allow: true; }
+tool[name="Glob"] { allow: true; }
+tool[name="Bash"] { allow: false; }
+tool[name="Write"] { allow: false; }
+network { deny: "*"; }
+resource[kind="memory"] { limit: 512MB; }
+resource[kind="wall-time"] { limit: 5m; }
+hook[event="after-change"] {
+  run: "pytest tests/auth/ -x";
+  run: "ruff check src/auth/";
+}
