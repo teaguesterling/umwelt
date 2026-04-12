@@ -1,0 +1,67 @@
+site_name: umwelt
+site_description: The common language of the specified band. CSS-shaped policy specification for AI agent environments.
+site_url: https://teaguesterling.github.io/umwelt/
+repo_url: https://github.com/teaguesterling/umwelt
+repo_name: teaguesterling/umwelt
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Guide:
+    - Writing Views: guide/writing-views.md
+    - How It Works: guide/how-it-works.md
+  - Vision:
+    - Overview: vision/README.md
+    - Policy Layer: vision/policy-layer.md
+    - Entity Model: vision/entity-model.md
+    - View Format: vision/view-format.md
+    - Package Design: vision/package-design.md
+    - Implementation Language: vision/implementation-language.md
+    - Compilers:
+      - Overview: vision/compilers/index.md
+      - nsjail: vision/compilers/nsjail.md
+      - bwrap: vision/compilers/bwrap.md
+  - Design Notes:
+    - Selector Semantics: vision/notes/selector-semantics.md
+    - World as Root: vision/notes/world-as-root-and-linker-role.md
