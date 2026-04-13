@@ -1,9 +1,14 @@
 """Tests for umwelt audit."""
-from umwelt.audit import format_audit, AuditReport, audit_view
 from umwelt.ast import (
-    View, RuleBlock, ComplexSelector, CompoundPart, SimpleSelector,
-    Declaration, SourceSpan,
+    ComplexSelector,
+    CompoundPart,
+    Declaration,
+    RuleBlock,
+    SimpleSelector,
+    SourceSpan,
+    View,
 )
+from umwelt.audit import audit_view, format_audit
 
 
 def _span(line=1):

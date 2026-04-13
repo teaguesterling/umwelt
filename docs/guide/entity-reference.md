@@ -171,6 +171,41 @@ env                    { allow: false; }     /* deny all others (lower specifici
 
 ---
 
+### `exec` — executable binary (parent: `world`)
+
+Declares an executable binary available inside the jail. When a `tool` entity
+has an `exec` property referencing an exec entity's name, the hook command
+resolution uses that binary's `path` (or `search-path`-augmented PATH) for
+dispatch.
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `name` | str | | Executable name (e.g. `bash`, `python3`) |
+| `path` | str | | Absolute path to the binary inside the jail |
+
+| Property | Type | Comparison | Description |
+|---|---|---|---|
+| `path` | str | exact | Absolute path to the binary inside the jail |
+| `search-path` | str | exact | Colon-separated PATH directories for the jail (default: `/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin`) |
+
+**Bridge property on `tool`:**
+
+| Property | Type | Description |
+|---|---|---|
+| `exec` | str | Name of the exec entity this tool delegates to (e.g. `"bash"`) |
+
+**Selector examples:**
+```css
+exec[name="bash"]    { path: "/bin/bash"; }
+exec[name="python3"] { path: "/usr/bin/python3"; }
+exec                 { search-path: "/bin:/usr/bin:/usr/local/bin"; }
+
+/* Bridge: link tool to executable entity */
+tool[name="Bash"] { exec: "bash"; }
+```
+
+---
+
 ## capability taxon
 
 **What it models:** what the actor can do — tools, kits, computation levels.
@@ -401,7 +436,8 @@ world#env-name                        ← root (named environment)
 ├── resource[kind="memory"]           ← runtime limits
 ├── resource[kind="wall-time"]
 ├── network                           ← network access
-└── env[name="CI"]                    ← env vars
+├── env[name="CI"]                    ← env vars
+└── exec[name="bash"]                 ← executable binaries (v0.3)
 
 tool[name="Read"]                     ← capability taxon (flat, not nested)
 tool[name="Edit"]

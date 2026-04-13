@@ -34,7 +34,7 @@ def test_exec_entity_all_none_by_default():
 
 
 def test_exec_entity_registered_in_vocabulary():
-    from umwelt.registry import get_entity, get_property, registry_scope
+    from umwelt.registry import get_entity, registry_scope
     from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
     with registry_scope():

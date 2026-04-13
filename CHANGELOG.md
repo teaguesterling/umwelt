@@ -6,6 +6,33 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-12
+
+The audit and bwrap milestone. Adds a second OS-altitude compiler (bwrap),
+world#env-name filtering, the executable entity type, and a security-aware
+audit command with cascade widening detection.
+
+### Added
+
+- **Executable entity** (`exec` in the `world` taxon): declares binary paths
+  and PATH search directories inside the jail. Attributes: `name`, `path`.
+  Properties: `path`, `search-path`. Parent: `world`.
+- **world#env-name filtering**: `resolve(view, world="dev")` and
+  `umwelt dry-run --world dev` pre-filter rules to only those matching the
+  named environment (or unscoped global rules). The `compile` subcommand
+  also accepts `--world`.
+- **bwrap compiler** (`umwelt.sandbox.compilers.bwrap`): OS-altitude compiler
+  that translates resolved views into `bwrap` argv arrays. File entities →
+  `--bind`/`--ro-bind`, mounts → `--bind`/`--ro-bind`/`--tmpfs`, network deny
+  → `--unshare-net`, env → `--setenv`, executable search-path → `--setenv PATH`,
+  resource limits → `--die-with-parent` + `prlimit`. Output is a `BwrapCompilation`
+  dataclass with an `argv` list.
+- **umwelt audit** (`umwelt.audit`): security-aware policy audit with per-entity
+  resolved property attribution (source line numbers) and cascade widening
+  detection. `umwelt audit view.umw [--world env]` prints a human-readable
+  report. Widening = a later rule loosens a permission set by an earlier rule
+  (e.g. `editable: false` → `editable: true`).
+
 ## [0.2.0] — 2026-04-12
 
 The first enforcement compiler milestone. The nsjail compiler translates
