@@ -163,6 +163,22 @@ def _cmd_compile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_audit(args: argparse.Namespace) -> int:
+    _load_default_vocabulary()
+    try:
+        view = parse(Path(args.file))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    _register_matchers(Path(args.file))
+    from umwelt.audit import format_audit
+    print(format_audit(view, world=getattr(args, "world", None)))
+    return 0
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     _load_default_vocabulary()
     try:
@@ -241,6 +257,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="named world environment to resolve against (e.g. dev, ci)",
     )
     p_dry.set_defaults(func=_cmd_dry_run)
+
+    p_audit = subparsers.add_parser(
+        "audit", help="security-aware policy audit with widening detection"
+    )
+    p_audit.add_argument("file", help="path to a .umw view file")
+    p_audit.add_argument(
+        "--world", default=None,
+        help="named world environment to audit",
+    )
+    p_audit.set_defaults(func=_cmd_audit)
 
     p_compile = subparsers.add_parser(
         "compile", help="compile a view to a target's native config format"
