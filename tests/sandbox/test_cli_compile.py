@@ -92,8 +92,8 @@ def test_check_reports_nsjail_compiler():
 def test_check_reports_compilers_registered():
     result = _run("check", str(FIXTURES / "auth-fix.umw"))
     assert result.returncode == 0, result.stderr
-    # bwrap and nsjail are both registered now
-    assert "2 registered" in result.stdout or "Compilers: 2" in result.stdout
+    # nsjail, bwrap, and lackpy-namespace are all registered now
+    assert "3 registered" in result.stdout or "Compilers: 3" in result.stdout
 
 
 # ---------------------------------------------------------------------------
