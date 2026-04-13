@@ -177,22 +177,36 @@ def _cmd_run(args: argparse.Namespace) -> int:
     _register_matchers(Path(args.file))
 
     import shutil
-    if shutil.which("nsjail") is None:
-        print("error: nsjail binary not found on PATH", file=sys.stderr)
-        return 1
 
     from umwelt.cascade.resolver import resolve
-    from umwelt.sandbox.runners.nsjail import run_in_nsjail
 
     resolved = resolve(view)
     command = args.command
     workspace_root = getattr(args, "workspace_root", "/workspace")
-    result = run_in_nsjail(resolved, command, workspace_root=workspace_root)
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    return result.returncode
+    target = getattr(args, "target", "nsjail")
+
+    if target == "bwrap":
+        if shutil.which("bwrap") is None:
+            print("error: bwrap binary not found on PATH", file=sys.stderr)
+            return 1
+        from umwelt.sandbox.runners.bwrap import run_in_bwrap
+        bwrap_result = run_in_bwrap(resolved, command, workspace_root=workspace_root)
+        if bwrap_result.stdout:
+            print(bwrap_result.stdout, end="")
+        if bwrap_result.stderr:
+            print(bwrap_result.stderr, end="", file=sys.stderr)
+        return bwrap_result.returncode
+    else:
+        if shutil.which("nsjail") is None:
+            print("error: nsjail binary not found on PATH", file=sys.stderr)
+            return 1
+        from umwelt.sandbox.runners.nsjail import run_in_nsjail
+        nsjail_result = run_in_nsjail(resolved, command, workspace_root=workspace_root)
+        if nsjail_result.stdout:
+            print(nsjail_result.stdout, end="")
+        if nsjail_result.stderr:
+            print(nsjail_result.stderr, end="", file=sys.stderr)
+        return nsjail_result.returncode
 
 
 def build_parser() -> argparse.ArgumentParser:
