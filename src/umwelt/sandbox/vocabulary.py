@@ -24,6 +24,7 @@ def register_sandbox_vocabulary() -> None:
     _register_state()
     _register_actor()
     _register_vsm_aliases()
+    _register_use()               # NEW
     _register_validators()
     _register_sugar()
 
@@ -50,6 +51,51 @@ def _register_sugar() -> None:
     from umwelt.sandbox.desugar import register_sandbox_sugar
 
     register_sandbox_sugar()
+
+
+def _register_use() -> None:
+    """Register the `use` entity — permissioned projection of world resources."""
+    register_entity(
+        taxon="operation",
+        name="use",
+        attributes={
+            "of": AttrSchema(
+                type=str,
+                description="Selector pointing at the world entity (e.g. 'file#/src/auth.py').",
+            ),
+            "of-kind": AttrSchema(
+                type=str,
+                description="Match all uses whose target is of a given kind (e.g. 'file', 'network').",
+            ),
+            "of-like": AttrSchema(
+                type=str,
+                description="Prefix-like match against target paths (e.g. 'file#/src').",
+            ),
+        },
+        description=(
+            "A permissioned projection of a world entity into the action axis. "
+            "Permissions (editable, visible, allow, deny) live on uses, not on "
+            "world entities themselves."
+        ),
+        category="access",
+    )
+
+    register_property(taxon="operation", entity="use", name="editable", value_type=bool,
+                      description="Whether this use grants edit access.")
+    register_property(taxon="operation", entity="use", name="visible", value_type=bool,
+                      description="Whether this use grants visibility.")
+    register_property(taxon="operation", entity="use", name="show", value_type=str,
+                      description="Projection kind: body, outline, signature.")
+    register_property(taxon="operation", entity="use", name="allow", value_type=bool,
+                      description="Whether this use is permitted.")
+    register_property(taxon="operation", entity="use", name="deny", value_type=str,
+                      description="Deny pattern ('*' for blanket deny).")
+    register_property(taxon="operation", entity="use", name="allow-pattern", value_type=list,
+                      comparison="pattern-in",
+                      description="Glob patterns for allowed invocations of this use.")
+    register_property(taxon="operation", entity="use", name="deny-pattern", value_type=list,
+                      comparison="pattern-in",
+                      description="Glob patterns for denied invocations of this use.")
 
 
 def _register_validators() -> None:

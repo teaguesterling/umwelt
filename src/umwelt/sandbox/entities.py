@@ -135,3 +135,21 @@ class ExecEntity:
     name: str | None = None
     path: str | None = None
     search_path: str | None = None
+
+
+@dataclass(frozen=True)
+class UseEntity:
+    """A permissioned projection of a world entity into the action axis.
+
+    `of` is the target world entity selector, stored as the raw string
+    (e.g. 'file#/src/auth.py'). `of_kind` and `of_like` are kind/prefix
+    forms captured from of-kind= / of-like= attributes.
+
+    Permissions (editable, visible, allow, deny, show) land on use
+    entities during cascade resolution, not on the world entities
+    themselves. See docs/vision/evaluation-framework.md claim A5.
+    """
+
+    of: str | None = None
+    of_kind: str | None = None
+    of_like: str | None = None
