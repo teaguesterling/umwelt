@@ -13,6 +13,7 @@ from umwelt.registry import (
     register_property,
     register_taxon,
     register_validator,
+    register_taxon_alias,
 )
 
 
@@ -22,8 +23,27 @@ def register_sandbox_vocabulary() -> None:
     _register_capability()
     _register_state()
     _register_actor()
+    _register_vsm_aliases()
     _register_validators()
     _register_sugar()
+
+
+def _register_vsm_aliases() -> None:
+    """Register VSM taxon names as aliases of legacy taxa.
+
+    v0.5: operation/coordination/control/intelligence point at the same
+    underlying taxa as capability/state/actor. The spec's logical split of
+    `state` into `coordination` and `control` is virtual in v0.5 — both
+    names resolve to the same bucket. The physical split happens in v0.6+
+    when the legacy-shim is retired.
+
+    `principal` and `audit` are genuinely new taxa and are registered
+    directly (Task 9 and Task 10), not as aliases.
+    """
+    register_taxon_alias(alias="operation", canonical="capability")
+    register_taxon_alias(alias="coordination", canonical="state")
+    register_taxon_alias(alias="control", canonical="state")
+    register_taxon_alias(alias="intelligence", canonical="actor")
 
 
 def _register_sugar() -> None:
