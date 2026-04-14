@@ -74,7 +74,10 @@ class NsjailCompiler:
                 self._compile_network(cfg, entity, props)
             elif entity_type == "EnvEntity":
                 self._compile_env(cfg, entity, props)
+            elif entity_type == "ExecEntity":
+                self._compile_exec(cfg, entity, props)
             # All other entity types (ToolEntity, HookEntity, etc.) are silently dropped.
+
 
     def _compile_file(
         self,
@@ -165,6 +168,23 @@ class NsjailCompiler:
             name = getattr(entity, "name", "")
             if name:
                 cfg.envars.append(name)
+
+    def _compile_exec(
+        self,
+        cfg: NsjailConfig,
+        entity: Any,
+        props: dict[str, str],
+    ) -> None:
+        """Emit PATH envar when a bare (unnamed) exec entity declares search-path."""
+        # Only emit PATH for the bare exec entity (no name set).
+        # Named exec entities (exec[name='bash']) are used for command resolution,
+        # not for PATH emission.
+        name = getattr(entity, "name", None)
+        if name:
+            return
+        search_path = props.get("search-path", "")
+        if search_path:
+            cfg.envars.insert(0, f"PATH={search_path}")
 
 
 _SYSTEM_MOUNTS = [
