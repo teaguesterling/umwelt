@@ -97,10 +97,25 @@ def register_taxon_alias(alias: str, canonical: str) -> None:
     state = _current_state()
     if canonical not in state.taxa:
         raise KeyError(f"canonical taxon '{canonical}' not registered")
+    if canonical in state.taxon_aliases:
+        raise ValueError(
+            f"'{canonical}' is itself an alias; alias the canonical directly"
+        )
     if alias in state.taxa:
         raise ValueError(f"taxon '{alias}' already exists (cannot alias)")
     state.taxa[alias] = state.taxa[canonical]
     state.taxon_aliases[alias] = canonical
+
+
+def resolve_taxon(name: str) -> str:
+    """Resolve a taxon name through aliases to its canonical name.
+
+    Public helper used by all registry submodules (entities, properties,
+    matchers, validators) to ensure lookups under an alias route to the
+    canonical key.
+    """
+    state = _current_state()
+    return state.taxon_aliases.get(name, name)
 
 
 def list_taxa() -> list[TaxonSchema]:

@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from umwelt.errors import RegistryError
 from umwelt.registry.entities import get_entity
-from umwelt.registry.taxa import _current_state
+from umwelt.registry.taxa import _current_state, resolve_taxon
 
 Comparison = Literal["exact", "<=", ">=", "in", "overlap", "pattern-in"]
 
@@ -49,15 +49,16 @@ def register_property(
 ) -> None:
     """Register a property on a (taxon, entity) pair."""
     get_entity(taxon, entity)  # raises if unknown
+    canonical = resolve_taxon(taxon)
     state = _current_state()
-    key = (taxon, entity, name)
+    key = (canonical, entity, name)
     if key in state.properties:
         raise RegistryError(
             f"property {name!r} already registered on {taxon}.{entity}"
         )
     state.properties[key] = PropertySchema(
         name=name,
-        taxon=taxon,
+        taxon=canonical,
         entity=entity,
         value_type=value_type,
         comparison=comparison,
@@ -70,10 +71,11 @@ def register_property(
 
 
 def get_property(taxon: str, entity: str, name: str) -> PropertySchema:
-    """Look up a property by (taxon, entity, name)."""
+    """Look up a property by (taxon, entity, name). Resolves taxon aliases."""
     state = _current_state()
+    canonical = resolve_taxon(taxon)
     try:
-        return state.properties[(taxon, entity, name)]
+        return state.properties[(canonical, entity, name)]
     except KeyError as exc:
         raise RegistryError(
             f"property {name!r} not registered on {taxon}.{entity}"
@@ -81,10 +83,11 @@ def get_property(taxon: str, entity: str, name: str) -> PropertySchema:
 
 
 def list_properties(taxon: str, entity: str) -> list[PropertySchema]:
-    """Return all properties registered on an entity."""
+    """Return all properties registered on an entity. Resolves taxon aliases."""
     state = _current_state()
+    canonical = resolve_taxon(taxon)
     return [
         p
         for (t, e, _n), p in state.properties.items()
-        if t == taxon and e == entity
+        if t == canonical and e == entity
     ]

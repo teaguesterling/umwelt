@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from umwelt.registry.taxa import _current_state, get_taxon
+from umwelt.registry.taxa import _current_state, get_taxon, resolve_taxon
 
 
 @runtime_checkable
@@ -22,10 +22,12 @@ class ValidatorProtocol(Protocol):
 
 def register_validator(*, taxon: str, validator: ValidatorProtocol) -> None:
     get_taxon(taxon)
+    canonical = resolve_taxon(taxon)
     state = _current_state()
-    state.validators.setdefault(taxon, []).append(validator)
+    state.validators.setdefault(canonical, []).append(validator)
 
 
 def get_validators(taxon: str) -> list[ValidatorProtocol]:
     state = _current_state()
-    return list(state.validators.get(taxon, []))
+    canonical = resolve_taxon(taxon)
+    return list(state.validators.get(canonical, []))

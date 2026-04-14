@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Protocol, runtime_checkable
 
 from umwelt.errors import RegistryError
-from umwelt.registry.taxa import _current_state, get_taxon
+from umwelt.registry.taxa import _current_state, get_taxon, resolve_taxon
 
 
 @runtime_checkable
@@ -68,18 +68,20 @@ class MatcherProtocol(Protocol):
 
 
 def register_matcher(*, taxon: str, matcher: MatcherProtocol) -> None:
-    """Register a matcher for a taxon."""
+    """Register a matcher for a taxon. Resolves taxon aliases."""
     get_taxon(taxon)  # raises if unknown
+    canonical = resolve_taxon(taxon)
     state = _current_state()
-    if taxon in state.matchers:
+    if canonical in state.matchers:
         raise RegistryError(f"matcher for taxon {taxon!r} already registered")
-    state.matchers[taxon] = matcher
+    state.matchers[canonical] = matcher
 
 
 def get_matcher(taxon: str) -> MatcherProtocol:
-    """Look up the matcher for a taxon."""
+    """Look up the matcher for a taxon. Resolves taxon aliases."""
     state = _current_state()
+    canonical = resolve_taxon(taxon)
     try:
-        return state.matchers[taxon]
+        return state.matchers[canonical]
     except KeyError as exc:
         raise RegistryError(f"no matcher registered for taxon {taxon!r}") from exc
