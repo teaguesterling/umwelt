@@ -35,6 +35,8 @@ class RegistryState:
     """
 
     taxa: dict[str, TaxonSchema] = field(default_factory=dict)
+    # Maps alias taxon name → canonical taxon name.
+    taxon_aliases: dict[str, str] = field(default_factory=dict)
     # Keyed by (taxon_name, entity_name)
     entities: dict[tuple[str, str], EntitySchema] = field(default_factory=dict)
     # Keyed by (taxon_name, entity_name, property_name)
@@ -78,9 +80,37 @@ def get_taxon(name: str) -> TaxonSchema:
         raise RegistryError(f"taxon {name!r} not registered") from exc
 
 
+def register_taxon_alias(alias: str, canonical: str) -> None:
+    """Register `alias` as another name for an existing `canonical` taxon.
+
+    After registration, get_taxon(alias) returns the same TaxonSchema as
+    get_taxon(canonical). Both names may be used interchangeably in
+    register_entity(taxon=...) and view.entries(...) calls.
+
+    Entity lookups via the alias are resolved transparently: get_entity(alias,
+    name) returns the same result as get_entity(canonical, name).
+
+    Raises:
+        KeyError: if `canonical` has not been registered.
+        ValueError: if `alias` is already a registered taxon or alias.
+    """
+    state = _current_state()
+    if canonical not in state.taxa:
+        raise KeyError(f"canonical taxon '{canonical}' not registered")
+    if alias in state.taxa:
+        raise ValueError(f"taxon '{alias}' already exists (cannot alias)")
+    state.taxa[alias] = state.taxa[canonical]
+    state.taxon_aliases[alias] = canonical
+
+
 def list_taxa() -> list[TaxonSchema]:
-    """Return all registered taxa in the active scope."""
-    return list(_current_state().taxa.values())
+    """Return all registered taxa in the active scope, excluding alias entries."""
+    state = _current_state()
+    return [
+        schema
+        for name, schema in state.taxa.items()
+        if name not in state.taxon_aliases
+    ]
 
 
 @contextmanager
