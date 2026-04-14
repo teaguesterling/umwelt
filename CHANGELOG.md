@@ -6,6 +6,37 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-04-13
+
+The lackpy-namespace, diff, and PyPI milestone. Adds the first
+language-altitude compiler (lackpy-namespace), a rule-level diff utility,
+nsjail PATH emission from exec entities, and a new example view for code
+review delegation. Package now builds a valid wheel and sdist.
+
+### Added
+
+- **lackpy-namespace compiler** (`umwelt.sandbox.compilers.lackpy_namespace`):
+  language-altitude compiler that reads `capability`-taxon entries (tool
+  allow/deny, kit allow, max-level, patterns) and emits a Python dict for
+  lackpy's namespace validator. Supports `allowed_tools`, `denied_tools`,
+  `kits`, `max_level`, `tool_levels`, `allow_patterns`, `deny_patterns`.
+- **umwelt diff** (`umwelt diff a.umw b.umw`): new subcommand and
+  `umwelt.diff_util` module. Compares two parsed views rule-by-rule and
+  reports added, removed, changed, and unchanged rules.
+- **lackpy-delegate fixture** (`src/umwelt/_fixtures/lackpy-delegate.umw`):
+  example read-only code review environment. Limits tools to Read/Grep/Glob
+  with max-level 1, denies network, 256MB/2m budget, after-change hook.
+- **nsjail PATH emission**: bare `ExecEntity` with a `search-path` property
+  now emits a `PATH=...` envar in the nsjail config.
+
+### Changed
+
+- `umwelt compile` now formats dict output as indented JSON (`json.dumps`
+  indent=2) instead of Python `repr`. This affects the lackpy-namespace
+  compiler and any future dict-returning compilers.
+- `umwelt check` now reports 3 registered compilers: nsjail, bwrap,
+  lackpy-namespace.
+
 ## [0.3.0] — 2026-04-12
 
 The audit and bwrap milestone. Adds a second OS-altitude compiler (bwrap),

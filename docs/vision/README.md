@@ -125,7 +125,7 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-**v0.1.0 shipped.** Core + sandbox consumer are complete: vocabulary-agnostic core (parser, AST, plugin registry, selector engine, cascade resolver, compiler protocol, CLI) plus the first-party `world`/`capability`/`state` vocabulary, workspace builder, writeback, hook dispatcher, and at-rule sugar desugaring. No concrete enforcement compilers yet; v0.2 adds the nsjail compiler. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
+**v0.4.0 shipped.** Core + sandbox consumer complete. Includes vocabulary-agnostic core (parser, AST, plugin registry, selector engine, cascade resolver, compiler protocol, CLI), first-party `world`/`capability`/`state` vocabulary, workspace builder, writeback, hook dispatcher, at-rule sugar desugaring, nsjail and bwrap OS-altitude compilers, lackpy-namespace language-altitude compiler, umwelt diff utility, and security audit command. PyPI-ready wheel and sdist. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
 
 ## Document map
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "umwelt"
-version = "0.3.0"
+version = "0.4.0"
 description = "The common language of the specified band. A CSS-shaped declarative format for policy specification."
 readme = "README.md"
 license = { text = "MIT" }
