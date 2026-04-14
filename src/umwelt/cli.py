@@ -163,6 +163,32 @@ def _cmd_compile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_diff(args: argparse.Namespace) -> int:
+    _load_default_vocabulary()
+    try:
+        view_a = parse(Path(args.file_a))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    try:
+        view_b = parse(Path(args.file_b))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except ViewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    from umwelt.diff_util import diff_views, format_diff
+
+    diff = diff_views(view_a, view_b)
+    print(format_diff(diff))
+    return 0
+
+
 def _cmd_audit(args: argparse.Namespace) -> int:
     _load_default_vocabulary()
     try:
@@ -280,6 +306,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="named world environment to resolve against (e.g. dev, ci)",
     )
     p_compile.set_defaults(func=_cmd_compile)
+
+    p_diff = subparsers.add_parser(
+        "diff", help="compare two view files and show rule-level differences"
+    )
+    p_diff.add_argument("file_a", help="path to first .umw view file")
+    p_diff.add_argument("file_b", help="path to second .umw view file")
+    p_diff.set_defaults(func=_cmd_diff)
 
     p_run = subparsers.add_parser(
         "run", help="compile a view and run a command inside the sandbox"
