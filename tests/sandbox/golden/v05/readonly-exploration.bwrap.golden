@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "--clearenv",
+    "--ro-bind",
+    "/bin",
+    "/bin",
+    "--ro-bind",
+    "/usr",
+    "/usr",
+    "--ro-bind",
+    "/lib",
+    "/lib",
+    "--ro-bind",
+    "/lib64",
+    "/lib64",
+    "--ro-bind",
+    "/sbin",
+    "/sbin",
+    "--unshare-net"
+  ],
+  "wrapper": [
+    "timeout",
+    "60"
+  ]
+}
