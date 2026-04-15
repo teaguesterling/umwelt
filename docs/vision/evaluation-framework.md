@@ -29,6 +29,7 @@ Each claim has an ID (category letter + number), a falsifier (what would make th
 | A3 | Cross-axis specificity is sound: rules that join more axes *are* more contextualized than rules that join fewer. | Construct a natural example where a cross-axis rule should be less specific than a single-axis rule with heavy attribute filtering. | 1 |
 | A4 | The CSS-shaped concrete syntax is equivalent in expressive power to non-recursive Datalog with stratified negation. | Find a Datalog program of that class with no umwelt-view equivalent. | 3 |
 | A5 | Every property declaration has a semantics specified by its `comparison` field (`exact`, `<=`, `>=`, `in`, `overlap`, `pattern-in`). | Find a property whose observed behavior differs from its declared comparison. | 1 |
+| A6 | World-axis permissions (properties on `file`/`dir`/`tool`/`network`) and action-axis permissions (properties on `use`) are semantically independent; neither desugars to the other. World-axis asks "is this resource editable?" (mount/inode-level); action-axis asks "does this access path grant edit?" (user-permission-level). A successful enforcement decision conjoins both. | Find a view where `file { editable: true; }` is silently treated as equivalent to `use[of="file#X"] { editable: true; }`, or a compiler that reads one axis when it should read both. | 1 |
 
 ### Category B — Enforcement claims (does the view bind the delegate)
 
@@ -191,7 +192,7 @@ Not all claims are equally load-bearing. Some are foundational (if false, the pr
 
 ### Tier 1 — load-bearing (falsify these and the value prop collapses)
 
-- A3 (cross-axis soundness), A5 (property comparison semantics), B2–B4 (altitude stacking, native-validator acceptance, out-of-altitude rejection), C1/C3 (proof-tree traceability and stability), D1 (failures can become rules), F2/F3 (actionable feedback, mode switching), G2 (specified band holds), H1/H3 (integrator adoption without fork, no wrapper dependency), I3 (alias transparency).
+- A3 (cross-axis soundness), A5 (property comparison semantics), A6 (axis independence), B2–B4 (altitude stacking, native-validator acceptance, out-of-altitude rejection), C1/C3 (proof-tree traceability and stability), D1 (failures can become rules), F2/F3 (actionable feedback, mode switching), G2 (specified band holds), H1/H3 (integrator adoption without fork, no wrapper dependency), I3 (alias transparency).
 
 ### Tier 2 — quality (falsify these and the project works but is worse)
 
@@ -249,6 +250,7 @@ If you can't produce that sentence, the evaluation framework isn't being run. Th
 | A2 | Cascade uses document order as tiebreaker (resolver.py L151-159). | **Verified** by construction for single-axis; extended by v0.5 Slice C for cross-axis. |
 | A3 | Introduced in v0.5 Slice C. | **Open pending v0.5 implementation**. |
 | A5 | Each registered property declares its comparison. Tested per-property in sandbox tests. | **Verified** by existing tests. |
+| A6 | Task 2 registered `use` permission properties additively; world-axis properties (`file.editable`, `tool.allow`, etc.) remain registered unchanged. Both axes are independently queryable. Spec §3a documents the distinction. | **Verified** by the coexistence of world-axis and action-axis property registrations. |
 | B1 | Compilers have snapshot tests for output stability (Task 6 of v0.5 plan), but no runtime round-trip in the actual sandbox. | **Partial** — continuity verified, correctness unverified. Open for v0.8/v0.9. |
 | B3 | No native-validator round-trip harness. | **Open — Tier 1**. Candidate for v0.7. |
 | C1 | `umwelt audit` reports per-rule source attribution. No formal proof tree. | **Partial**. Full proof trees v0.9+. |

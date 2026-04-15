@@ -174,15 +174,27 @@ This is the move to defend. The argument:
 
 This is genuine novelty. The Ma series should own it.
 
-### C. `use[of=...]` as the action-axis projection
+### C. `use[of=...]` as the action-axis projection — additive to world-axis, not a replacement
 
-File-versus-file-descriptor is standard OS thinking. Capability theory (Levy, *Capability-Based Computer Systems*, 1984) made the distinction formal: a capability is an unforgeable reference that carries permission.
+Standard OS thinking separates a **file** (on disk, maybe on a read-only mount) from a **file descriptor** (a process's permissioned access to the file). A write succeeds only if both allow it. Capability theory (Levy, *Capability-Based Computer Systems*, 1984) formalizes the descriptor side as an unforgeable reference carrying permission.
 
-What's new: **lifting capabilities into the policy syntax as first-class selectable entities.** In OPA, permissions are derived at query time from relations; in Cedar, permissions are on `(principal, action, resource)` triples; in Polar, permissions are on predicates. None of them have a syntactic primitive that *is* the capability.
+umwelt lifts **both** into the policy syntax as first-class, independently-queryable predicates:
 
-`use[of="file#..."]` in umwelt *is* the capability. The view declares capabilities explicitly, cascades permissions over them, and compiles them into enforcement. The permissioned projection is visible in the source, not derived invisibly.
+- `file.editable` / `mount.readonly` / `tool.allow` — *world-axis*: property-of-the-resource. "Is this file mounted writable?" "Does this network endpoint exist?"
+- `use[of="file#X"].editable` / `use[of="tool#Y"].allow` — *action-axis*: property-of-the-access. "Does this access path grant edit rights through this tool?"
 
-Minor novelty but worth claiming — it makes audit explanations simpler ("rule R grants use U; delegate exercised U") and it's the construct that makes the three-way join (`inferencer × tool × use`) read naturally.
+An enforcement decision conjoins them: the delegate can write to `X` iff `file#X.editable ∧ ∃use U. of(U, file#X) ∧ use.editable(U)`.
+
+What's new relative to the landscape:
+
+- **OPA/Rego** derives permissions at query time from relations — no syntactic primitive for the capability itself; the distinction between "resource is editable" and "this user has edit access" is encoded implicitly in rule bodies.
+- **Cedar** puts permissions on `(principal, action, resource)` triples, collapsing the two axes into one evaluation.
+- **Polar** puts permissions on predicates, similar to OPA.
+- **umwelt** has distinct, first-class syntax for each axis. `file { editable: true }` expresses resource-nature; `use[of=file#X] { editable: true }` expresses access-grant. Both participate in cascade independently.
+
+This matters for altitude stacking: OS-altitude enforcers (nsjail, bwrap) should read the world-axis (mount-level rw/ro); language-altitude enforcers (lackpy, kibitzer) should read the action-axis (per-delegate tool gating). The split in the syntax mirrors the split in enforcement.
+
+Minor novelty in isolation but worth claiming — it makes audit explanations simpler ("resource R is editable (rule line 12); use U of R is editable (rule line 48); delegate exercised U") and it's the construct that lets the three-way join (`inferencer × tool × use[of=file]`) read naturally without conflating nature with access.
 
 ### D. Agent as subject
 

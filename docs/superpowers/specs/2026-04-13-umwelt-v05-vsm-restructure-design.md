@@ -37,12 +37,12 @@ This milestone restructures umwelt's taxa to these axes, so subsequent compiler 
 ### Deliverables
 
 1. **VSM-aligned taxa** (§2) replacing the current five-taxon model.
-2. **`use[of=...]` primitive** (§3) — the action-axis permissioned projection of a world resource. Permissions (`editable`, `visible`, `allow`) move from world entities onto `use`.
+2. **`use[of=...]` primitive** (§3) — the action-axis permissioned projection of a world resource. **Additive, not replacing** — world-axis permissions on resources (`file { editable: true; }`) and action-axis permissions on uses (`use[of=file#X] { editable: true; }`) are semantically independent (see §3a).
 3. **`audit` placed outside the world** (§4) — architectural, not conventional.
 4. **Mode as a class, not an ID** (§5) — `mode.implement`, compositional across worlds.
 5. **Cross-axis cascade** (§6) — specificity counts contributions from every axis a selector names.
-6. **Migration path** (§9) — every current entity mapped to its new axis; existing views parse under an automatic legacy-shim.
-7. **v0.5 vertical slices** (§10) — five slices, each buildable independently, each leaving the test suite green.
+6. **Migration path** (§9) — every current entity mapped to its new axis; existing views work unchanged because world-axis properties remain.
+7. **v0.5 vertical slices** (§10) — each buildable independently, each leaving the test suite green.
 
 ### Explicit non-goals for v0.5
 
@@ -136,25 +136,45 @@ mode.implement use[of-like="file#/src/**/*.py"] { editable: true; }
 inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
 ```
 
-### Properties that move from world entities onto `use`
+### §3a — World-axis permissions vs action-axis permissions
 
-| Property | Was on | Now on |
+**Critical distinction:** these are two independent concepts, not two surface syntaxes for the same thing.
+
+Think of it as the OS-level distinction between a **read-only mount** and a **user's file-permission bits**:
+
+- A file mounted read-only → no user can write regardless of their permissions. That's a **world-axis** property of the resource itself.
+- A user without write permission on a mounted-writable file → this user cannot write, others might. That's an **action-axis** property of an access path.
+
+A successful write requires **both**: the resource must be editable (world-axis) AND the delegate must hold an editable use (action-axis).
+
+#### Both axes carry permission properties — with different meanings
+
+| Property | World axis (property-of-resource) | Action axis (property-of-access) |
 |---|---|---|
-| `editable` | `file`, `dir` | `use` |
-| `visible` | `file`, `dir` | `use` |
-| `show` | `file` | `use` |
-| `allow` (for tools) | `tool` | `use` (for resource-scoped permits); stays on `tool` for tool-level enablement |
-| `deny` | `network`, `tool` | `use` for resource-scoped; stays on operation for blanket denies |
-| `allow-pattern`, `deny-pattern` | `tool` | `use` when scoped to a resource; stays on `tool` for blanket patterns |
+| `editable` | `file.editable` / `dir.editable` — "the resource itself is editable (not read-only at mount/inode level)" | `use.editable` — "this access path grants edit rights" |
+| `visible` | `file.visible` / `dir.visible` — "the resource is visible in the workspace" | `use.visible` — "this access path reveals the resource" |
+| `show` | `file.show` — "what projection of the resource is materialized (body / outline / signature)" | `use.show` — "what the delegate sees through this access" |
+| `allow` / `deny` | `tool.allow` / `network.deny` — "this capability is available in the world" | `use.allow` / `use.deny` — "the delegate can invoke this capability through this access" |
+| `allow-pattern` / `deny-pattern` | `tool.allow-pattern` — "what invocations exist" | `use.allow-pattern` — "what invocations this access path permits" |
 
-### Properties that stay on world entities
+Both axes remain registered in v0.5. Both are first-class. Neither desugars to the other.
 
-| Property | Entity | Why |
+#### Compiler altitude mapping (no change in v0.5)
+
+- **nsjail** (OS altitude) reads world-axis properties. Mount-level rw/ro for `file.editable`, `mount.readonly`. This is correct — nsjail enforces resource-nature, not per-delegate access.
+- **bwrap** (OS altitude) same.
+- **lackpy-namespace** (language altitude) will read action-axis properties in v0.6+. Tool-level `use.allow` gates what the delegate can invoke. This is correct — language altitude enforces per-delegate access.
+- **kibitzer-hooks** (semantic altitude, v0.6) mixes: path-writability per mode is world-axis (`file.editable` + mode scope); per-tool gating is action-axis (`use[of=tool#X].allow`).
+
+#### Properties that are exclusively on one axis
+
+| Property | Entity | Why exclusive |
 |---|---|---|
-| `path`, `name`, `size`, `language` | `file` | Existence / identity, not permission. |
-| `source`, `type`, `readonly` (mount-level) | `mount` | Host-level mount config, not per-use. |
-| `host`, `port`, `kind` | `network` | Endpoint identity. |
-| `limit` | `resource` | Absolute world-level cap, distinct from per-use rate limits. |
+| `path`, `name`, `size`, `language` | `file` (world) | Identity, not permission. |
+| `source`, `type`, `readonly` (mount-level) | `mount` (world) | Host-level mount config. |
+| `host`, `port`, `kind` | `network` (world) | Endpoint identity. |
+| `limit` | `resource` (world) | Absolute world-level cap. |
+| `of`, `of-kind`, `of-like` | `use` (action) | Link back into the world axis. |
 
 ### The `of=` attribute
 
@@ -172,13 +192,20 @@ Parsing `of=` produces a nested selector that evaluates against the same world e
 
 ### Defaults
 
-A view with no `use` rules grants **no uses** — the delegate has no access. This is fail-closed, matching the existing umwelt default. The common pattern is a wide-open default and narrow restrictions:
+The default behavior depends on which axis is being queried. A view without any `use` rules means no action-axis permissions are declared; the world-axis permissions on `file`, `tool`, etc. still apply through their own cascade. The full-access decision conjoins both axes.
+
+Views can mix both styles idiomatically:
 
 ```css
-use { visible: true; editable: false; }                  /* all uses: read-only */
-mode.implement use[of-like="file#/src"] { editable: true; } /* implement mode: src writable */
-mode.test use[of-like="file#/tests"] { editable: true; }    /* test mode: tests writable */
+/* world-axis: this file is read-only at the resource level */
+file[path="/etc/secrets.conf"] { editable: false; visible: false; }
+
+/* action-axis: the delegate's access path has these permissions */
+use { visible: true; editable: false; }                           /* default deny-edit */
+mode.implement use[of-like="file#/src"] { editable: true; }       /* mode grants edit on src */
 ```
+
+Both declarations are active. A write to `/etc/secrets.conf` fails at the world-axis check even if the mode's use rule would otherwise grant edit.
 
 ---
 
@@ -338,46 +365,40 @@ Full principal modeling (multiple principals, delegation lineage, capability-inh
 
 ## 9. Migration path
 
-This is a semantic restructuring, not a format break. Existing v0.4 views parse and compile to byte-identical output through a **legacy-shim** applied at parse time.
+This is an **additive restructuring**. World-axis properties (`file.editable`, `tool.allow`, etc.) remain registered and functional. The action-axis is new and independent. No legacy-shim is needed — existing v0.4 views keep working because their rules still populate the world-axis entities and properties they always did.
 
-### Legacy-shim rules
+### What changes
 
-| v0.4 form | v0.5 equivalent | Shim action |
-|---|---|---|
-| `file#foo { editable: true; }` | `use[of="file#foo"] { editable: true; }` | Desugar: permission properties on `file`/`dir`/`tool` → synthesized `use` rule. |
-| `tool[name="Bash"] { allow: false; }` | `use[of="tool#Bash"] { allow: false; }` | Same pattern for tool permissions. |
-| `@world { ... }` | `world { ... }` | Existing at-rule remains valid. |
-| `state.hook[event=...]` | `coordination hook[event=...]` | Taxon renamed; selector tagged to new axis. |
-| `state.budget`, `state.job` | `control budget`, `control job` | Same. |
-| `actor.inferencer` | `intelligence inferencer` | Same. |
-| `actor.executor` | `operation executor` | Same. |
+- New taxa (`principal`, `audit`) and new taxon-aliases (`operation`, `coordination`, `control`, `intelligence`) are registered.
+- New `use` entity registered in the operation axis. `use[of=...]` selectors produce `UseEntity` instances during resolve.
+- Cross-axis cascade specificity (§6) widens the specificity tuple. Single-axis v0.4 rules retain identical ordering (`axis_count=1` for all of them).
 
-The shim runs unconditionally on parse. Users see no behavioral change; the AST is uniformly in the new shape post-parse.
+### What stays the same
+
+- Every world-axis property registered in v0.4 (`file.editable`, `tool.allow`, `network.deny`, `mount.readonly`, etc.) remains registered and carries its same meaning.
+- `file { editable: true; }` is a first-class way to express resource-level permission and is not desugared.
+- All three compilers (nsjail, bwrap, lackpy-namespace) continue reading world-axis properties and produce byte-identical output for every v0.4 fixture. Task 6 in the plan adds snapshot tests to guard this.
 
 ### Vision-doc updates
 
-`docs/vision/entity-model.md` replaced in full. v0.4 version committed as `entity-model-v04.md` for history.
-`docs/guide/entity-reference.md` regenerated from the new registry.
-`docs/vision/notes/selector-semantics.md` updated with the cross-axis specificity definition.
+`docs/vision/entity-model.md` updated (not replaced) to document both axes.
+`docs/guide/entity-reference.md` regenerated with the new `use`, `principal`, `observation`, `manifest` entries.
 A new `docs/vision/notes/vsm-alignment.md` captures the Beer mapping and the S3↔S4 inversion justification.
+`docs/vision/notes/logic-semantics.md` clarifies that world-axis and action-axis permissions are independent predicates.
 
-### Compiler compatibility
+### Compiler compatibility (no v0.5 changes)
 
-All three existing compilers (nsjail, bwrap, lackpy-namespace) receive the new-shape `ResolvedView` and emit byte-identical output. Test snapshots guard this. The changes are:
-
-- nsjail: reads `use[of-kind=file]` instead of `file` directly for mount generation; reads `use[of-kind=network]` for network deny.
-- bwrap: same pattern.
-- lackpy-namespace: reads `use[of-kind=tool]` for allow/deny; reads `tool` directly for `max-level` (which is a tool-level property, not per-use).
+In v0.5, all three existing compilers continue reading the same entity types and properties they did in v0.4. The `use` entity is populated but unread. v0.6 compiler work will decide which axes each compiler should read from (see §3a altitude mapping).
 
 ### Test migration
 
-The existing 483-test suite passes unchanged on v0.4-shape views. A new `tests/vsm/` directory adds ~40 tests covering:
+The existing 490-test suite passes unchanged (v0.4-shape rules still populate world-axis entries via existing matchers). New tests under `tests/registry/`, `tests/sandbox/`, and `tests/cascade/` cover:
 
-- Use-based permission cascade.
+- Taxon-alias transparency.
+- Use-based permission cascade (action-axis).
 - Cross-axis specificity ordering.
-- Mode-as-class selector matching.
-- Audit at-rule parsing.
-- Legacy-shim byte-compatibility for every fixture in `_fixtures/`.
+- Principal / audit taxa parse and resolve.
+- Byte-compat snapshots against v0.4 fixtures.
 
 ---
 
@@ -385,19 +406,18 @@ The existing 483-test suite passes unchanged on v0.4-shape views. A new `tests/v
 
 v0.5 decomposes into five slices, each a buildable, testable, shippable unit. Each leaves the suite green.
 
-### Slice A — Taxa registration and legacy-shim (land first)
+### Slice A — Taxa registration (land first)
 
-- Rename taxa in the registry: `capability` → split into `operation` / `world` (for exec); `state` → split into `coordination` / `control` / `audit`; `actor` → split into `principal` / `intelligence` / `operation`.
-- Register `use` entity under a new *action-link* meta-taxon (a taxon whose entities link across axes rather than living on one).
-- Install the legacy-shim in the parser post-pass.
-- All existing tests continue to pass because shim output is byte-identical.
+- Register new VSM taxon aliases (`operation`, `coordination`, `control`, `intelligence`) alongside existing `capability`/`state`/`actor`; aliases are transparent across all registry submodules.
+- Register `use` entity under the `operation` taxon (world entities are linked via the `of=` attribute, not by re-parenting).
+- All existing tests continue to pass because world-axis registrations are untouched.
 
 ### Slice B — `use[of=...]` as first-class entity
 
 - Register `use` with properties `editable`, `visible`, `show`, `allow`, `deny`, `allow-pattern`, `deny-pattern`.
 - Implement `of=` attribute parsing (selector-valued, nested match).
 - Implement `of-like=` and `of-kind=` forms.
-- Update nsjail and bwrap compilers to read `use` entries instead of (or in addition to) world entities directly.
+- No compiler changes in v0.5 — they continue reading world-axis as before.
 - Snapshot tests confirm byte-identical output for all v0.4 fixtures.
 
 ### Slice C — Cross-axis cascade
@@ -447,7 +467,7 @@ Sequence: A → B → C → D → E. A-B-C can be parallelized across sub-agents
 
 | Risk | Mitigation |
 |---|---|
-| Legacy-shim drift — compilers start relying on shim side-effects rather than the new shape. | Shim runs only at parse; compilers always see new-shape AST. Snapshot tests guard output. After v0.6, the shim becomes opt-in and emits deprecation warnings. |
+| Ambiguity between world-axis and action-axis permissions confuses authors. | §3a explicitly documents the distinction with the mount-vs-user-permission analogy. Entity-reference doc cross-references both axes. Error messages name the axis where a property was declared. |
 | Cross-axis specificity surprises existing view authors. | `axis_count=1` for every legacy rule → no reordering. Document the rule prominently. |
 | `use[of=...]` nested selector parsing adds parser complexity. | Reuse the existing selector parser; `of=` value is parsed by re-entering the same parser. Small, localized change. |
 | The VSM framing adds cognitive load for users who don't know Beer. | Docs lead with concrete examples first, theory second. VSM becomes an organizing principle behind the scenes, not a prerequisite for users. |
