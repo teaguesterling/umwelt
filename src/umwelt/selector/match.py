@@ -137,9 +137,9 @@ def match_complex(
             if type_name == "*":
                 # Universal — the matcher doesn't know about * natively; use
                 # a best-effort approach: match every type the matcher owns.
-                candidates: list[Any] = matcher.match_type("*")
+                candidates: list[Any] = matcher.match_type("*", context=eval_context)
             else:
-                candidates = matcher.match_type(type_name)
+                candidates = matcher.match_type(type_name, context=eval_context)
         else:
             # Subsequent structural part: navigate from the previous frontier.
             type_name = part.selector.type_name or "*"
