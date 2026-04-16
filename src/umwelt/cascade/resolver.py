@@ -72,7 +72,7 @@ def _filter_rules_by_world_indexed(
 class _RuleApplication:
     rule_index: int
     selector_index: int
-    specificity: tuple[int, int, int]
+    specificity: tuple[int, ...]
     rule: RuleBlock
     selector: ComplexSelector
 
