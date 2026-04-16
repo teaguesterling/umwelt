@@ -12,8 +12,8 @@ from umwelt.registry import (
     register_entity,
     register_property,
     register_taxon,
-    register_validator,
     register_taxon_alias,
+    register_validator,
 )
 
 

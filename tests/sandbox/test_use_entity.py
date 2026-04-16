@@ -6,7 +6,8 @@ property declares its comparison field). See docs/vision/evaluation-framework.md
 from __future__ import annotations
 
 import pytest
-from umwelt.registry import get_entity, get_property, register_taxon_alias, registry_scope
+
+from umwelt.registry import get_entity, get_property, registry_scope
 from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
 

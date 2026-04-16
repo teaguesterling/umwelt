@@ -9,9 +9,10 @@ Distinct from tests/test_audit.py which covers the `umwelt audit` CLI.
 from __future__ import annotations
 
 import pytest
-from umwelt.parser import parse
+
 from umwelt.cascade.resolver import resolve
-from umwelt.registry import registry_scope, register_matcher, get_taxon, get_entity
+from umwelt.parser import parse
+from umwelt.registry import get_entity, get_taxon, register_matcher, registry_scope
 from umwelt.sandbox.audit_matcher import AuditMatcher
 from umwelt.sandbox.entities import ManifestEntity, ObservationEntity
 from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
@@ -71,7 +72,7 @@ def test_at_audit_parses_manifest_rule(vocab_with_matchers):
         if isinstance(e, ManifestEntity)
     ]
     assert manifests
-    entity, props = manifests[0]
+    entity, _props = manifests[0]
     assert entity.name == "current"
 
 

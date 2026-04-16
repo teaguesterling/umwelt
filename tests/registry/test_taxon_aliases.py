@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from umwelt.registry import (
     get_taxon,
     register_taxon,
@@ -20,9 +21,8 @@ def test_alias_resolves_to_same_schema():
 
 
 def test_alias_for_unknown_canonical_raises():
-    with registry_scope():
-        with pytest.raises(KeyError):
-            register_taxon_alias(alias="coordination", canonical="state")
+    with registry_scope(), pytest.raises(KeyError):
+        register_taxon_alias(alias="coordination", canonical="state")
 
 
 def test_alias_collides_with_existing_taxon_raises():

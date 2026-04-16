@@ -8,9 +8,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from umwelt.parser import parse
+
 from umwelt.cascade.resolver import resolve
-from umwelt.registry import registry_scope, register_matcher
+from umwelt.parser import parse
+from umwelt.registry import register_matcher, registry_scope
 from umwelt.sandbox.actor_matcher import ActorMatcher
 from umwelt.sandbox.capability_matcher import CapabilityMatcher
 from umwelt.sandbox.state_matcher import StateMatcher

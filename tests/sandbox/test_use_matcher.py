@@ -6,11 +6,12 @@ test for use entity resolution. See docs/vision/evaluation-framework.md.
 from __future__ import annotations
 
 import pytest
-from umwelt.parser import parse
+
 from umwelt.cascade.resolver import resolve
-from umwelt.registry import registry_scope, register_matcher
-from umwelt.sandbox.entities import UseEntity
+from umwelt.parser import parse
+from umwelt.registry import register_matcher, registry_scope
 from umwelt.sandbox.capability_matcher import CapabilityMatcher
+from umwelt.sandbox.entities import UseEntity
 from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
 
@@ -88,5 +89,5 @@ def test_use_bare_rule_creates_bare_entity(vocab_with_matchers):
     assert len(uses) >= 1
     bare = [(e, p) for e, p in uses if e.of is None and e.of_kind is None and e.of_like is None]
     assert bare
-    entity, props = bare[0]
+    _entity, props = bare[0]
     assert props.get("editable") == "false"

@@ -7,10 +7,13 @@ docs/vision/evaluation-framework.md.
 """
 from __future__ import annotations
 
+import itertools
+
 import pytest
-from umwelt.parser import parse
+
 from umwelt.cascade.resolver import resolve
-from umwelt.registry import registry_scope, register_matcher
+from umwelt.parser import parse
+from umwelt.registry import register_matcher, registry_scope
 from umwelt.sandbox.actor_matcher import ActorMatcher
 from umwelt.sandbox.capability_matcher import CapabilityMatcher
 from umwelt.sandbox.entities import InferencerEntity, UseEntity
@@ -127,6 +130,6 @@ def test_specificity_tuple_is_well_ordered_no_cycles(vocab_with_matchers):
         _specs(_parse('inferencer tool use[of="file#x"] { editable: true; }', vocab_with_matchers))[0],
     ]
     # Strictly monotone by construction.
-    for a, b in zip(specs, specs[1:]):
+    for a, b in itertools.pairwise(specs):
         assert b >= a, f"expected non-decreasing specificity: {a} → {b}"
     assert specs[-1] > specs[0]

@@ -6,9 +6,10 @@ See docs/vision/evaluation-framework.md.
 from __future__ import annotations
 
 import pytest
-from umwelt.parser import parse
+
 from umwelt.cascade.resolver import resolve
-from umwelt.registry import registry_scope, register_matcher, get_taxon, get_entity
+from umwelt.parser import parse
+from umwelt.registry import get_entity, get_taxon, register_matcher, registry_scope
 from umwelt.sandbox.capability_matcher import CapabilityMatcher
 from umwelt.sandbox.entities import PrincipalEntity, UseEntity
 from umwelt.sandbox.principal_matcher import PrincipalMatcher

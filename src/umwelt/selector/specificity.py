@@ -29,7 +29,6 @@ from __future__ import annotations
 
 from umwelt.ast import ComplexSelector, SimpleSelector
 
-
 _AXES = ("principal", "world", "state", "actor", "capability", "audit")
 
 
