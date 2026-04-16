@@ -54,7 +54,7 @@ def _canonical_axis(taxon: str) -> str:
     return taxon
 
 
-def compound_specificity(compound: ComplexSelector) -> tuple:
+def compound_specificity(compound: ComplexSelector) -> tuple[int, ...]:
     weights = {axis: 0 for axis in _AXES}
     other_weight = 0
     axes_seen: set[str] = set()

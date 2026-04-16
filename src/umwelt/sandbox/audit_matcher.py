@@ -25,7 +25,7 @@ class AuditMatcher:
             )
         return []
 
-    def _synthesize(self, context: Any, type_name: str, cls) -> list[Any]:
+    def _synthesize(self, context: Any, type_name: str, cls: type) -> list[Any]:
         if context is None:
             return []
         rules = getattr(context, "rules", None)
