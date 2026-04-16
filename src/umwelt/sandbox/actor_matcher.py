@@ -43,8 +43,17 @@ class ActorMatcher:
         return []
 
     def condition_met(self, selector: Any, context: Any = None) -> bool:
-        """No runtime actor state in v0.1 — always False."""
-        return False
+        """Return True if any actor in the list matches the selector.
+
+        When no actors have been registered (the default), returns False.
+        When actors are present, delegates to match_simple to check whether
+        the selector is satisfied by at least one known entity.
+        """
+        if not self._inferencers and not self._executors:
+            return False
+        from umwelt.selector.match import match_simple
+        all_actors: list[Any] = [*self._inferencers, *self._executors]
+        return len(match_simple(selector, self, all_actors)) > 0
 
     def get_attribute(self, entity: Any, name: str) -> Any:
         return getattr(entity, name, None)

@@ -80,7 +80,7 @@ class ComplexSelector:
 
     parts: tuple[CompoundPart, ...]
     target_taxon: str
-    specificity: tuple[int, int, int]
+    specificity: tuple[int, ...]
 
 
 @dataclass(frozen=True)

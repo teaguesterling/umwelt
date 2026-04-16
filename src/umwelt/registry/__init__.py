@@ -30,7 +30,9 @@ from umwelt.registry.taxa import (
     get_taxon,
     list_taxa,
     register_taxon,
+    register_taxon_alias,
     registry_scope,
+    resolve_taxon,
 )
 from umwelt.registry.validators import (
     ValidatorProtocol,
@@ -58,7 +60,9 @@ __all__ = [
     "register_matcher",
     "register_property",
     "register_taxon",
+    "register_taxon_alias",
     "register_validator",
     "registry_scope",
     "resolve_entity_type",
+    "resolve_taxon",
 ]

@@ -42,7 +42,7 @@ class PropertyAttribution:
     property_name: str
     value: str
     source_line: int
-    specificity: tuple[int, int, int]
+    specificity: tuple[int, ...]
     is_widening: bool = False
     widened_from_line: int | None = None
 

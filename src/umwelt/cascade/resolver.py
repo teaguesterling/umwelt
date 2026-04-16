@@ -72,7 +72,7 @@ def _filter_rules_by_world_indexed(
 class _RuleApplication:
     rule_index: int
     selector_index: int
-    specificity: tuple[int, int, int]
+    specificity: tuple[int, ...]
     rule: RuleBlock
     selector: ComplexSelector
 
@@ -84,8 +84,15 @@ class ResolvedView:
     _by_taxon: dict[str, list[tuple[Any, dict[str, str]]]] = field(default_factory=dict)
 
     def entries(self, taxon: str) -> Iterator[tuple[Any, dict[str, str]]]:
-        """Iterate (entity, {property: value}) pairs for a taxon."""
-        yield from self._by_taxon.get(taxon, [])
+        """Iterate (entity, {property: value}) pairs for a taxon.
+
+        Resolves taxon aliases transparently: entries("operation") returns
+        the same results as entries("capability") when "operation" is an
+        alias for "capability".
+        """
+        from umwelt.registry.taxa import resolve_taxon
+        canonical = resolve_taxon(taxon)
+        yield from self._by_taxon.get(canonical, [])
 
     def add(self, taxon: str, entity: Any, properties: dict[str, str]) -> None:
         self._by_taxon.setdefault(taxon, []).append((entity, properties))
@@ -122,7 +129,7 @@ def resolve(view: View, eval_context: Any = None, world: str | None = None) -> R
     # Per-taxon accumulator: list of (entity_key, entity, matching_applications)
     per_taxon: dict[str, list[tuple[int, Any, list[_RuleApplication]]]] = {}
     for app in apps:
-        matched = match_complex(app.selector, eval_context=eval_context)
+        matched = match_complex(app.selector, eval_context=eval_context if eval_context is not None else view)
         for entity in matched:
             key = id(entity)  # entities are not generally hashable
             bucket = per_taxon.setdefault(app.selector.target_taxon, [])

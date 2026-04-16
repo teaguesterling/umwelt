@@ -135,3 +135,47 @@ class ExecEntity:
     name: str | None = None
     path: str | None = None
     search_path: str | None = None
+
+
+@dataclass(frozen=True)
+class UseEntity:
+    """A permissioned projection of a world entity into the action axis.
+
+    `of` is the target world entity selector, stored as the raw string
+    (e.g. 'file#/src/auth.py'). `of_kind` and `of_like` are kind/prefix
+    forms captured from of-kind= / of-like= attributes.
+
+    Permissions (editable, visible, allow, deny, show) land on use
+    entities during cascade resolution, not on the world entities
+    themselves. See docs/vision/evaluation-framework.md claim A5.
+    """
+
+    of: str | None = None
+    of_kind: str | None = None
+    of_like: str | None = None
+
+
+@dataclass(frozen=True)
+class PrincipalEntity:
+    """The commissioning principal (S5 — identity axis).
+
+    Carries name (id-like), intent (why), grade (optional Ma-grade 0-4).
+    Principals appear as the outermost qualifier in selectors:
+        principal#Teague use[of="file#X"] { editable: true; }
+    """
+    name: str | None = None
+
+
+@dataclass(frozen=True)
+class ObservationEntity:
+    """An observation entry emitted by a Layer-2 observer (blq, ratchet-detect).
+
+    Lives in the audit taxon (S3*) — outside the world the delegate occupies.
+    """
+    name: str | None = None
+
+
+@dataclass(frozen=True)
+class ManifestEntity:
+    """A workspace manifest reference in the audit taxon."""
+    name: str | None = None

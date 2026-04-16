@@ -12,6 +12,7 @@ from umwelt.registry import (
     register_entity,
     register_property,
     register_taxon,
+    register_taxon_alias,
     register_validator,
 )
 
@@ -22,14 +23,137 @@ def register_sandbox_vocabulary() -> None:
     _register_capability()
     _register_state()
     _register_actor()
+    _register_vsm_aliases()
+    _register_use()               # NEW
+    _register_principal()         # Task 9: S5 identity axis
+    _register_audit()             # Task 10: S3* cross-cut observer
     _register_validators()
     _register_sugar()
+
+
+def _register_vsm_aliases() -> None:
+    """Register VSM taxon names as aliases of legacy taxa.
+
+    v0.5: operation/coordination/control/intelligence point at the same
+    underlying taxa as capability/state/actor. The spec's logical split of
+    `state` into `coordination` and `control` is virtual in v0.5 — both
+    names resolve to the same bucket. The physical split happens in v0.6+
+    when the legacy-shim is retired.
+
+    `principal` and `audit` are genuinely new taxa and are registered
+    directly (Task 9 and Task 10), not as aliases.
+    """
+    register_taxon_alias(alias="operation", canonical="capability")
+    register_taxon_alias(alias="coordination", canonical="state")
+    register_taxon_alias(alias="control", canonical="state")
+    register_taxon_alias(alias="intelligence", canonical="actor")
 
 
 def _register_sugar() -> None:
     from umwelt.sandbox.desugar import register_sandbox_sugar
 
     register_sandbox_sugar()
+
+
+def _register_use() -> None:
+    """Register the `use` entity — permissioned projection of world resources."""
+    register_entity(
+        taxon="operation",
+        name="use",
+        attributes={
+            "of": AttrSchema(
+                type=str,
+                description="Selector pointing at the world entity (e.g. 'file#/src/auth.py').",
+            ),
+            "of-kind": AttrSchema(
+                type=str,
+                description="Match all uses whose target is of a given kind (e.g. 'file', 'network').",
+            ),
+            "of-like": AttrSchema(
+                type=str,
+                description="Prefix-like match against target paths (e.g. 'file#/src').",
+            ),
+        },
+        description=(
+            "A permissioned projection of a world entity into the action axis. "
+            "Permissions (editable, visible, allow, deny) live on uses, not on "
+            "world entities themselves."
+        ),
+        category="access",
+    )
+
+    register_property(taxon="operation", entity="use", name="editable", value_type=bool,
+                      description="Whether this use grants edit access.")
+    register_property(taxon="operation", entity="use", name="visible", value_type=bool,
+                      description="Whether this use grants visibility.")
+    register_property(taxon="operation", entity="use", name="show", value_type=str,
+                      description="Projection kind: body, outline, signature.")
+    register_property(taxon="operation", entity="use", name="allow", value_type=bool,
+                      description="Whether this use is permitted.")
+    register_property(taxon="operation", entity="use", name="deny", value_type=str,
+                      description="Deny pattern ('*' for blanket deny).")
+    register_property(taxon="operation", entity="use", name="allow-pattern", value_type=list,
+                      comparison="pattern-in",
+                      description="Glob patterns for allowed invocations of this use.")
+    register_property(taxon="operation", entity="use", name="deny-pattern", value_type=list,
+                      comparison="pattern-in",
+                      description="Glob patterns for denied invocations of this use.")
+
+
+def _register_principal() -> None:
+    """Register the `principal` taxon — S5 identity axis."""
+    register_taxon(
+        name="principal",
+        description="S5: commissioning identity. Who set the bounds for the delegate.",
+        ma_concept="principal_axis",
+    )
+    register_entity(
+        taxon="principal",
+        name="principal",
+        attributes={
+            "name": AttrSchema(type=str, description="Principal identifier (used as #id)."),
+        },
+        description="The commissioning principal.",
+        category="identity",
+    )
+    register_property(taxon="principal", entity="principal", name="intent", value_type=str,
+                      description="Free-form description of why this delegate was commissioned.")
+    register_property(taxon="principal", entity="principal", name="grade", value_type=int,
+                      description="Ma-grade label (0-4). Consumed by audit; other compilers ignore.")
+
+
+def _register_audit() -> None:
+    """Register the audit taxon (S3*) — cross-cut observer outside the world."""
+    register_taxon(
+        name="audit",
+        description="S3* cross-cut observer. Outside the world it observes.",
+        ma_concept="audit_axis",
+    )
+    register_entity(
+        taxon="audit",
+        name="observation",
+        attributes={
+            "name": AttrSchema(type=str, description="Observation identifier (used as #id)."),
+        },
+        description="A Layer-2 observation entry (blq, ratchet-detect output).",
+        category="observation",
+    )
+    register_entity(
+        taxon="audit",
+        name="manifest",
+        attributes={
+            "name": AttrSchema(type=str, description="Manifest identifier."),
+        },
+        description="A workspace manifest reference.",
+        category="manifest",
+    )
+
+    register_property(taxon="audit", entity="observation", name="source", value_type=str,
+                     description="Observer source (e.g. 'kibitzer', 'ratchet-detect').")
+    register_property(taxon="audit", entity="observation", name="enabled", value_type=bool,
+                     description="Whether this observation is enabled.")
+    register_property(taxon="audit", entity="manifest", name="path", value_type=str,
+                     description="Path to the manifest file.")
 
 
 def _register_validators() -> None:
