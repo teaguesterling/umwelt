@@ -26,6 +26,7 @@ def register_sandbox_vocabulary() -> None:
     _register_vsm_aliases()
     _register_use()               # NEW
     _register_principal()         # Task 9: S5 identity axis
+    _register_audit()             # Task 10: S3* cross-cut observer
     _register_validators()
     _register_sugar()
 
@@ -119,6 +120,40 @@ def _register_principal() -> None:
                       description="Free-form description of why this delegate was commissioned.")
     register_property(taxon="principal", entity="principal", name="grade", value_type=int,
                       description="Ma-grade label (0-4). Consumed by audit; other compilers ignore.")
+
+
+def _register_audit() -> None:
+    """Register the audit taxon (S3*) — cross-cut observer outside the world."""
+    register_taxon(
+        name="audit",
+        description="S3* cross-cut observer. Outside the world it observes.",
+        ma_concept="audit_axis",
+    )
+    register_entity(
+        taxon="audit",
+        name="observation",
+        attributes={
+            "name": AttrSchema(type=str, description="Observation identifier (used as #id)."),
+        },
+        description="A Layer-2 observation entry (blq, ratchet-detect output).",
+        category="observation",
+    )
+    register_entity(
+        taxon="audit",
+        name="manifest",
+        attributes={
+            "name": AttrSchema(type=str, description="Manifest identifier."),
+        },
+        description="A workspace manifest reference.",
+        category="manifest",
+    )
+
+    register_property(taxon="audit", entity="observation", name="source", value_type=str,
+                     description="Observer source (e.g. 'kibitzer', 'ratchet-detect').")
+    register_property(taxon="audit", entity="observation", name="enabled", value_type=bool,
+                     description="Whether this observation is enabled.")
+    register_property(taxon="audit", entity="manifest", name="path", value_type=str,
+                     description="Path to the manifest file.")
 
 
 def _register_validators() -> None:

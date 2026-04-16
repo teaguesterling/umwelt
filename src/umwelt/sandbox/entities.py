@@ -164,3 +164,18 @@ class PrincipalEntity:
         principal#Teague use[of="file#X"] { editable: true; }
     """
     name: str | None = None
+
+
+@dataclass(frozen=True)
+class ObservationEntity:
+    """An observation entry emitted by a Layer-2 observer (blq, ratchet-detect).
+
+    Lives in the audit taxon (S3*) — outside the world the delegate occupies.
+    """
+    name: str | None = None
+
+
+@dataclass(frozen=True)
+class ManifestEntity:
+    """A workspace manifest reference in the audit taxon."""
+    name: str | None = None

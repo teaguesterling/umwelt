@@ -30,6 +30,7 @@ def register_sandbox_sugar() -> None:
     register_sugar("network", _desugar_network)
     register_sugar("budget", _desugar_budget)
     register_sugar("env", _desugar_env)
+    register_sugar("audit", _desugar_audit)
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +367,40 @@ def _desugar_env(
                     span=_span(d),
                 ))
     return rules
+
+
+# ---------------------------------------------------------------------------
+# @audit { observation#coach { source: "kibitzer"; } manifest#current { ... } }
+# → the body's rules, passed through unchanged. Because observation and
+# manifest entities are registered under the audit taxon, the selector
+# parser automatically tags them with target_taxon="audit".
+# ---------------------------------------------------------------------------
+
+def _desugar_audit(
+    node: Any,
+    warnings: list[Any],
+    source_path: Path | None,
+) -> list[RuleBlock]:
+    """Parse @audit body as regular rules; rules target the audit taxon automatically."""
+    content = list(getattr(node, "content", []) or [])
+    if not content:
+        return []
+
+    # Re-parse the @audit body as a rule list.
+    inner_nodes = tinycss2.parse_rule_list(
+        content, skip_comments=True, skip_whitespace=True
+    )
+
+    from umwelt.parser import _build_rule_block  # internal; same pattern as parser internals
+
+    out: list[RuleBlock] = []
+    for inner in inner_nodes:
+        if getattr(inner, "type", None) != "qualified-rule":
+            continue
+        rb = _build_rule_block(inner, warnings, source_path=source_path)
+        if rb is not None:
+            out.append(rb)
+    return out
 
 
 # ---------------------------------------------------------------------------

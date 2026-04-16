@@ -56,6 +56,9 @@ def _register_matchers(view_file: Path) -> None:
             register_matcher(taxon="actor", matcher=ActorMatcher())
         with contextlib.suppress(RegistryError):
             register_matcher(taxon="principal", matcher=PrincipalMatcher())
+        from umwelt.sandbox.audit_matcher import AuditMatcher
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="audit", matcher=AuditMatcher())
     except ImportError:
         pass
 
