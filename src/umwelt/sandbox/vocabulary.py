@@ -323,6 +323,7 @@ def _register_capability() -> None:
     )
 
     register_property(taxon="capability", entity="tool", name="allow", value_type=bool, description="Whether the tool is permitted.")
+    register_property(taxon="capability", entity="tool", name="visible", value_type=bool, description="Whether the tool is displayed to the delegate. Default follows 'allow'.")
     register_property(taxon="capability", entity="tool", name="max-level", value_type=int, comparison="<=", value_attribute="level", value_range=(0, 8), description="Maximum computation level permitted.", category="effects_ceiling")
     register_property(taxon="capability", entity="tool", name="require", value_type=str, description="Requirement for using this tool (e.g. 'sandbox').")
     register_property(taxon="capability", entity="tool", name="allow-pattern", value_type=list, comparison="pattern-in", description="Glob patterns for allowed invocations.")
@@ -375,6 +376,22 @@ def _register_state() -> None:
         },
         description="A runtime budget.",
         category="budgets",
+    )
+
+    register_entity(
+        taxon="state",
+        name="mode",
+        attributes={
+            "name": AttrSchema(type=str, description="Mode class name (used as .classname in selectors)"),
+        },
+        description=(
+            "A regulation mode (S3). Authored via class selectors like "
+            "`mode.implement` or `mode.implement.tdd`. Compositional — modes stack. "
+            "v0.5 registers the entity and supports mode-as-context-qualifier in "
+            "cross-axis cascade; runtime class-filtering is v0.6 (coordinated with "
+            "kibitzer's ChangeToolMode)."
+        ),
+        category="regulation",
     )
 
     register_property(taxon="state", entity="hook", name="run", value_type=str, description="Shell command to execute for this hook.")

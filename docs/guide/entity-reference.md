@@ -317,10 +317,13 @@ A tool the actor can call. Carries a computation level from the [nine-level taxo
 | Property | Type | Comparison | Description |
 |---|---|---|---|
 | `allow` | bool | exact | Whether the tool is permitted |
+| `visible` | bool | exact | Whether the tool is displayed to the delegate (default: follows `allow`) |
 | `max-level` | int | `<=` | Maximum computation level. Tools above this are denied. |
 | `require` | str | exact | Requirement for using this tool (e.g. `sandbox`) |
 | `allow-pattern` | list | `pattern-in` | Glob patterns for allowed invocations |
 | `deny-pattern` | list | `pattern-in` | Glob patterns for denied invocations |
+
+**Note on `visible`:** distinct from `allow`. `allow: false` keeps the tool from being invoked; `visible: false` hides it from the delegate's menu entirely. Default: `visible` follows `allow` (not-allowed → not-visible). Explicit `visible: true` with `allow: false` is valid (surfaces the tool so the delegate knows it exists but is gated).
 
 **Computation levels:**
 
@@ -345,6 +348,14 @@ tool[name="Bash"] {
   allow-pattern: "git *", "pytest *";
   deny-pattern: "rm -rf *", "sudo *";
 }
+
+/* Cross-axis: mode-gated tool surface (see also "Cross-axis idioms" below) */
+mode.explore tool                   { allow: false; }          /* default-deny in explore */
+mode.explore tool[name="Read"]      { allow: true; }
+mode.explore tool[name="Grep"]      { allow: true; }
+
+mode.test tool[name="Edit"]         { allow: true; max-level: 3; }
+mode.test tool[name="Bash"]         { allow: true; allow-pattern: "pytest *"; }
 ```
 
 ---
@@ -408,6 +419,73 @@ use[of="exec#bash"] { allow: true; allow-pattern: "git *", "pytest *"; }
 ```
 
 **Relationship to world-axis properties:** `use.editable` and `file.editable` are independent. A write succeeds only when both allow it: the resource must be editable (world-axis) AND the delegate must hold an editable use (action-axis). This matches the OS-level distinction between a read-only mount (world-axis) and a user's file-permission bits (action-axis).
+
+---
+
+## Cross-axis idioms
+
+The v0.5 cascade lets selectors join multiple axes. A rule that names more axes is more specific (`axis_count`-first ordering). A handful of patterns come up often enough to be worth documenting.
+
+### Mode-gated tool surface
+
+When the goal is "in this mode, these tools are on the menu; others are not," reach for a plain `mode.<class> tool[name=...]` cross-axis rule — **not** `use[of="tool#..."]`. Tool-level rules are shorter, and tool presence is the capability-level concept, not an invocation concept.
+
+```css
+/* Default-deny all tools in explore mode, then allow a narrow set. */
+mode.explore tool                 { allow: false; }
+mode.explore tool[name="Read"]    { allow: true; }
+mode.explore tool[name="Grep"]    { allow: true; }
+mode.explore tool[name="Glob"]    { allow: true; }
+
+/* Implement mode: default-allow except for destructive tools. */
+mode.implement tool[name="Bash"]  { allow: false; }
+
+/* Test mode: narrow Bash to test runners. */
+mode.test tool[name="Bash"]       { allow: true; allow-pattern: "pytest *", "blq run *"; }
+
+/* Review mode: read-only posture. */
+mode.review tool                  { allow: false; }
+mode.review tool[name="Read"]     { allow: true; }
+mode.review tool[name="Grep"]     { allow: true; }
+mode.review tool[name="Glob"]     { allow: true; }
+```
+
+`visible` follows `allow` by default, so these rules also control what the delegate sees in the tool menu. The compiler can downgrade to visibility-only if the enforcement altitude doesn't support denial.
+
+### When to reach for `use[of="tool#..."]`
+
+Use `use[of=...]` when the rule is specifically about **an invocation of the tool**, not the tool's mere presence. Examples:
+
+```css
+/* Tighten this specific access path — not the tool's existence. */
+use[of="tool#Bash"] { allow-pattern: "git commit *", "git push *"; }
+
+/* Per-resource permission on a tool that can touch many resources. */
+mode.implement use[of="file#/src/auth.py"] { editable: true; }
+
+/* Three-way: inferencer × tool × specific file. */
+inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
+```
+
+Rule of thumb:
+- About **the tool** (exists, allowed, level, patterns) → `tool[name=...]`.
+- About **an invocation / access path** (which file, under which mode, via which inferencer) → `use[of=...]`.
+
+### Three-axis narrowing
+
+Once you have principal + mode + (tool or use), a rule can express very specific policy concisely:
+
+```css
+principal#Teague mode.implement tool[name="Bash"] {
+  allow-pattern: "git *", "pytest *";
+}
+
+principal#Teague mode.test use[of-like="file#tests/"] {
+  editable: true;
+}
+```
+
+Three axes → `axis_count=3` → these rules beat any two-axis overlap.
 
 ---
 
