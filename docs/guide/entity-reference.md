@@ -6,10 +6,102 @@ Every entity type, attribute, and property registered by the sandbox consumer. T
 
 ---
 
+## VSM alias taxa (v0.5+)
+
+v0.5 introduces a Viable System Model (VSM) aligned naming for taxa. The Beer names are **aliases** — existing names still work, and the VSM names resolve to the same matchers:
+
+| VSM taxon | Legacy taxon | Beer's system |
+|---|---|---|
+| `principal` | *(new)* | S5 — Identity / commissioning authority |
+| `world` | `world` | S0 — Environment |
+| `audit` | *(new)* | S3\* — Audit bypass channel |
+| `control` | `state` | S3 — Current-moment regulation |
+| `coordination` | `state` | S2 — Anti-oscillation / harness |
+| `intelligence` | `actor` | S4 — The inferencer |
+| `operation` | `capability` | S1 — Tools and effects |
+
+All seven taxa participate in cross-axis cascade specificity: selectors that name more axes win. See the design note at `docs/vision/notes/vsm-alignment.md` for the rationale.
+
+---
+
+## principal taxon
+
+**What it models:** the commissioning authority — the human or outer agent who defined this view.
+**VSM concept:** S5 (Identity / policy).
+
+Minimal in v0.5. Richer principal modeling (cross-delegate lineage, grade lattice) is v1.1+.
+
+### `principal` — the commissioning authority
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `name` | str | | Principal name (used as `#id` in selectors) |
+
+| Property | Type | Comparison | Description |
+|---|---|---|---|
+| `intent` | str | exact | Human-readable statement of purpose for this delegation |
+| `grade` | str | exact | Trust grade: `personal`, `team`, `org` (v1.1+) |
+
+**Selector examples:**
+```css
+principal#Teague { intent: "code review"; }
+principal#Teague world#sandbox { /* rules for this principal's world */ }
+```
+
+---
+
+## audit taxon
+
+**What it models:** observations from outside the delegate's world — the S3\* bypass channel.
+**VSM concept:** S3\* (Audit — direct observation without S2/S3 interference).
+
+Audit sits *outside* the world hierarchy. Entries in `@audit { ... }` are never subject to world-scoped context qualifiers. No audit compiler ships in v0.5; these entities are the contract for v0.7's observation consumer.
+
+### `observation` — an observation entry
+
+Something a Layer-2 observer reported (e.g. from `blq`, `ratchet-detect`, `strace`).
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `id` | str | | Observation identifier (used as `#id` in selectors) |
+| `source` | str | | Observer tool that produced this entry |
+
+| Property | Type | Comparison | Description |
+|---|---|---|---|
+| `enabled` | bool | exact | Whether this observation source is active |
+
+**Selector examples:**
+```css
+@audit {
+  observation#coach    { source: "kibitzer"; enabled: true; }
+  observation#ratchet  { source: "ratchet-detect"; enabled: true; }
+}
+```
+
+---
+
+### `manifest` — the workspace manifest
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `id` | str | | Manifest identifier |
+| `path` | str | | Path to the manifest file |
+
+**Selector examples:**
+```css
+@audit {
+  manifest#current { path: ".umwelt/manifest.json"; }
+}
+```
+
+---
+
 ## world taxon
 
 **What it models:** the actor's coupled world — filesystem, mounts, network, environment, resources.
 **Ma concept:** world coupling axis.
+
+**World-axis vs action-axis:** Properties like `editable`, `visible`, and `allow` on world entities (`file`, `dir`, `network`, `tool`) are **world-axis** — they express a property of the resource itself (e.g. a read-only mount, a denied network endpoint). These are distinct from the same-named properties on `use` entities, which are **action-axis** — they express what a specific delegate's access path permits. OS-altitude compilers (nsjail, bwrap) read world-axis properties; language-altitude compilers (lackpy, kibitzer) read action-axis properties. A full enforcement decision conjoins both. See the `use` entity (under the capability/operation taxon) and `docs/vision/notes/vsm-alignment.md`.
 
 ### `world` — named environment (root)
 
@@ -277,6 +369,48 @@ kit[name="python-dev"] { allow: true; }
 
 ---
 
+### `use` — action-axis permission (v0.5+)
+
+A permissioned projection of a world resource onto a specific delegate. `use[of=...]` is the **action-axis** counterpart to world-axis resource properties — it expresses what permissions a delegate holds on a resource through a particular access path.
+
+The `of=` attribute takes a selector string pointing into the world axis. `use` entities do not appear in the world hierarchy; they cross-link operation-axis with world-axis.
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `of` | str | | Selector matching the target world entity (e.g. `"file#/src/auth.py"`) |
+| `of-kind` | str | | Kind-scoped: matches all uses of resources of this type (e.g. `"file"`, `"network"`) |
+| `of-like` | str | | Prefix-like match against a world entity selector |
+
+| Property | Type | Comparison | Description |
+|---|---|---|---|
+| `editable` | bool | exact | Whether the delegate's access path grants edit rights |
+| `visible` | bool | exact | Whether the delegate's access path reveals the resource |
+| `show` | str | exact | What the delegate sees through this access: `body`, `outline`, `signature` |
+| `allow` | bool | exact | Whether the delegate can invoke this capability through this access |
+| `deny` | str | exact | Deny pattern for invocations through this access |
+| `allow-pattern` | list | `pattern-in` | Glob patterns for invocations permitted through this access |
+| `deny-pattern` | list | `pattern-in` | Glob patterns for invocations denied through this access |
+
+**Selector examples:**
+```css
+/* default deny-edit on all uses */
+use { editable: false; }
+
+/* grant edit on all Python source files in implement mode */
+mode.implement use[of-like="file#/src"] { editable: true; }
+
+/* specific use in a specific context */
+inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
+
+/* tool-level gating via use */
+use[of-kind="network"] { allow: false; }
+use[of="exec#bash"] { allow: true; allow-pattern: "git *", "pytest *"; }
+```
+
+**Relationship to world-axis properties:** `use.editable` and `file.editable` are independent. A write succeeds only when both allow it: the resource must be editable (world-axis) AND the delegate must hold an editable use (action-axis). This matches the OS-level distinction between a read-only mount (world-axis) and a user's file-permission bits (action-axis).
+
+---
+
 ## state taxon
 
 **What it models:** what the Harness tracks across turns — hooks, jobs, budgets.
@@ -396,10 +530,10 @@ These entity types are documented in the [entity model spec](../vision/entity-mo
 | Entity | Taxon | When | Description |
 |---|---|---|---|
 | `node` | world | v1.1 | Code construct inside a file (function, class, method). Evaluated via pluckit/sitting_duck. |
-| `effect` | capability | v1.1 | Effect signature declared by a tool: read, write, exec, spawn. |
-| `observation` | state | v1.1 | Something a Layer-2 observer reported. |
-| `manifest` | state | v1.1 | The workspace manifest. |
+| `effect` | operation | v1.1 | Effect signature declared by a tool: read, write, exec, spawn. |
 | `source` | world (proposed) | v1.1+ | Logical file grouping for monorepos. See [design notes](../vision/notes/world-as-root-and-linker-role.md). |
+
+*Note: `observation` and `manifest` moved from this table to the `audit` taxon section above — they are registered in v0.5.*
 
 ---
 
@@ -422,7 +556,14 @@ Properties with prefixed names carry built-in comparison semantics:
 ## The hierarchy
 
 ```
-world#env-name                        ← root (named environment)
+@audit {                               ← audit taxon (S3* — outside world)
+  observation#coach                    ← observation entries
+  manifest#current
+}
+
+principal#Teague                       ← principal taxon (S5)
+
+world#env-name                        ← world taxon (S0 — root of environment)
 ├── mount[path="/workspace/src"]      ← workspace topology
 │   ├── dir[name="src"]
 │   │   ├── dir[name="auth"]
@@ -437,18 +578,20 @@ world#env-name                        ← root (named environment)
 ├── resource[kind="wall-time"]
 ├── network                           ← network access
 ├── env[name="CI"]                    ← env vars
-└── exec[name="bash"]                 ← executable binaries (v0.3)
+└── exec[name="bash"]                 ← executable binaries
 
-tool[name="Read"]                     ← capability taxon (flat, not nested)
+tool[name="Read"]                     ← operation taxon / capability (S1 — flat, not nested)
 tool[name="Edit"]
 tool[name="Bash"]
 kit[name="python-dev"]
+use[of="file#/src/auth.py"]           ← action-axis cross-link (operation taxon)
 
-hook[event="after-change"]            ← state taxon
-job[id="run-1"]
+hook[event="after-change"]            ← coordination taxon / state (S2)
+
+job[id="run-1"]                       ← control taxon / state (S3)
 budget[kind="wall-time"]
 
-inferencer[model="claude-sonnet-4-6"]  ← actor taxon (minimal v1)
+inferencer[model="claude-sonnet-4-6"]  ← intelligence taxon / actor (S4)
 ```
 
-Navigate with CSS descendant selectors. Cross-taxon compound selectors (e.g. `world#dev tool[name="Bash"]`) are context qualifiers, not structural descent.
+Navigate with CSS descendant selectors. Cross-taxon compound selectors (e.g. `world#dev tool[name="Bash"]`) are context qualifiers, not structural descent. VSM alias names (`operation`, `coordination`, `control`, `intelligence`) are interchangeable with the legacy names (`capability`, `state`, `actor`).
