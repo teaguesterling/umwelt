@@ -41,6 +41,7 @@ def _register_matchers(view_file: Path) -> None:
         from umwelt.registry import register_matcher
         from umwelt.sandbox.actor_matcher import ActorMatcher
         from umwelt.sandbox.capability_matcher import CapabilityMatcher
+        from umwelt.sandbox.principal_matcher import PrincipalMatcher
         from umwelt.sandbox.state_matcher import StateMatcher
         from umwelt.sandbox.world_matcher import WorldMatcher
 
@@ -53,6 +54,8 @@ def _register_matchers(view_file: Path) -> None:
             register_matcher(taxon="state", matcher=StateMatcher())
         with contextlib.suppress(RegistryError):
             register_matcher(taxon="actor", matcher=ActorMatcher())
+        with contextlib.suppress(RegistryError):
+            register_matcher(taxon="principal", matcher=PrincipalMatcher())
     except ImportError:
         pass
 

@@ -153,3 +153,14 @@ class UseEntity:
     of: str | None = None
     of_kind: str | None = None
     of_like: str | None = None
+
+
+@dataclass(frozen=True)
+class PrincipalEntity:
+    """The commissioning principal (S5 — identity axis).
+
+    Carries name (id-like), intent (why), grade (optional Ma-grade 0-4).
+    Principals appear as the outermost qualifier in selectors:
+        principal#Teague use[of="file#X"] { editable: true; }
+    """
+    name: str | None = None

@@ -25,6 +25,7 @@ def register_sandbox_vocabulary() -> None:
     _register_actor()
     _register_vsm_aliases()
     _register_use()               # NEW
+    _register_principal()         # Task 9: S5 identity axis
     _register_validators()
     _register_sugar()
 
@@ -96,6 +97,28 @@ def _register_use() -> None:
     register_property(taxon="operation", entity="use", name="deny-pattern", value_type=list,
                       comparison="pattern-in",
                       description="Glob patterns for denied invocations of this use.")
+
+
+def _register_principal() -> None:
+    """Register the `principal` taxon — S5 identity axis."""
+    register_taxon(
+        name="principal",
+        description="S5: commissioning identity. Who set the bounds for the delegate.",
+        ma_concept="principal_axis",
+    )
+    register_entity(
+        taxon="principal",
+        name="principal",
+        attributes={
+            "name": AttrSchema(type=str, description="Principal identifier (used as #id)."),
+        },
+        description="The commissioning principal.",
+        category="identity",
+    )
+    register_property(taxon="principal", entity="principal", name="intent", value_type=str,
+                      description="Free-form description of why this delegate was commissioned.")
+    register_property(taxon="principal", entity="principal", name="grade", value_type=int,
+                      description="Ma-grade label (0-4). Consumed by audit; other compilers ignore.")
 
 
 def _register_validators() -> None:
