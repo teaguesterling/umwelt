@@ -45,8 +45,14 @@ class StateMatcher:
         return []
 
     def condition_met(self, selector: Any, context: Any = None) -> bool:
-        """State entities are not used as cross-taxon context qualifiers."""
-        return False
+        """Mode selectors are always active in v0.5; other state entities don't qualify.
+
+        v0.5: mode is a compositional class label. Cross-axis rules gated on
+        mode fire unconditionally at view-resolve time. Runtime class filtering
+        (only fire if the current mode matches) is a v0.6 concern coordinated
+        with kibitzer's ChangeToolMode.
+        """
+        return getattr(selector, "type_name", None) == "mode"
 
     def get_attribute(self, entity: Any, name: str) -> Any:
         return getattr(entity, name, None)
