@@ -6,6 +6,14 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-04-16
+
+### Fixed
+- Re-anchor the v0.5 release tag onto `main`. The v0.5.0 tag points at
+  the pre-squash branch commit (reachable via its ref on GitHub); v0.5.1
+  is the same content, tagged on the squash-merge commit of `main`. No
+  code, docs, or test changes.
+
 ## [0.5.0] — 2026-04-14
 
 ### Added
