@@ -6,6 +6,51 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-04-14
+
+### Added
+- **VSM-aligned taxa**: `principal` (S5) and `audit` (S3*) as new top-level
+  taxa; `operation`, `coordination`, `control`, `intelligence` as aliases
+  of `capability`/`state`/`actor`. Legacy taxon names remain fully functional.
+- **`use[of=...]` entity** — first-class permissioned projection of a
+  world resource into the action axis. Carries action-axis permission
+  properties: `editable`, `visible`, `show`, `allow`, `deny`,
+  `allow-pattern`, `deny-pattern`. Additive to world-axis permissions on
+  `file`/`dir`/`tool`/`network` — the two axes are semantically
+  independent (see spec §3a).
+- **`@audit { ... }` at-rule** for declaring audit-taxon entries
+  (observation, manifest) outside the world.
+- **Cross-axis cascade specificity**: selectors that join more taxa-axes
+  are more specific. Specificity tuple widened from `(ids, cls, types)`
+  to `(axis_count, principal, world, state, actor, capability, audit, other)`.
+  Single-axis v0.4 rules retain identical ordering because `axis_count=1`
+  is uniform across them.
+- **Byte-compat snapshot suite** across all 5 fixtures × 3 compilers
+  (nsjail, bwrap, lackpy-namespace) guards compiler output against
+  unintended drift.
+- **Resolver determinism property test** across all fixtures and a
+  50-run stability check.
+- **Taxon-alias resolution** in registry (`resolve_taxon`) — entity,
+  property, matcher, and validator lookups all route through canonical
+  names transparently.
+
+### Changed
+- `ComplexSelector.specificity` type widened from `tuple[int, int, int]`
+  to `tuple[int, ...]`.
+- `umwelt.registry` public API exports `register_taxon_alias` and
+  `resolve_taxon`.
+
+### Notes
+- Compilers (nsjail, bwrap, lackpy-namespace) continue to read world-axis
+  entities directly in v0.5. The v0.6 work will decide which compilers
+  should migrate to reading the action-axis (e.g., lackpy for per-tool
+  gating via `use[of=tool#X]`).
+- Kibitzer-hooks compiler deferred to v0.6. Security pass deferred to v0.7.
+- Evaluation framework (`docs/vision/evaluation-framework.md`) introduced
+  as the reference for claims verified/open per milestone. v0.5 verifies
+  or strengthens claims A1, A2, A3, A5, A6, B1-continuity, G1, H1, H3, I1,
+  I3.
+
 ## [0.4.0] — 2026-04-13
 
 The lackpy-namespace, diff, and PyPI milestone. Adds the first
