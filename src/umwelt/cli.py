@@ -132,6 +132,10 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
+    # duckdb target: compile to a policy database via ducklog
+    if args.target == "duckdb":
+        return _cmd_compile_duckdb(args, view)
+
     _register_matchers(Path(args.file))
 
     from umwelt import compilers as compiler_registry
@@ -142,18 +146,12 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         compiler = compiler_registry.get(args.target)
     except RegistryError:
         available = compiler_registry.available()
-        if available:
-            print(
-                f"error: no compiler registered for target {args.target!r}. "
-                f"Available: {', '.join(available)}",
-                file=sys.stderr,
-            )
-        else:
-            print(
-                f"error: no compiler registered for target {args.target!r}. "
-                "No compilers are registered.",
-                file=sys.stderr,
-            )
+        names = ", ".join(available) if available else "(none)"
+        print(
+            f"error: no compiler registered for target {args.target!r}. "
+            f"Available: {names}, duckdb",
+            file=sys.stderr,
+        )
         return 1
 
     resolved = resolve(view, world=getattr(args, "world", None))
@@ -167,6 +165,119 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         import json
         print(json.dumps(output, indent=2))
     return 0
+
+
+def _cmd_compile_duckdb(args: argparse.Namespace, view) -> int:
+    """Compile a view to a DuckDB policy database via ducklog.
+
+    Requires ducklog to be installed. The output path defaults to
+    <view-stem>.duckdb alongside the source file.
+    """
+    try:
+        import duckdb
+        from ducklog.compiler import compile_view
+    except ImportError:
+        print(
+            "error: duckdb target requires the 'ducklog' package. "
+            "Install with: pip install ducklog",
+            file=sys.stderr,
+        )
+        return 1
+
+    view_path = Path(args.file)
+    output = getattr(args, "output", None)
+    if output:
+        db_path = output
+    else:
+        db_path = str(view_path.with_suffix(".duckdb"))
+
+    con = duckdb.connect(db_path)
+
+    # Create minimal entity schema
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS entities (
+            id INTEGER PRIMARY KEY,
+            taxon VARCHAR NOT NULL,
+            type_name VARCHAR NOT NULL,
+            entity_id VARCHAR,
+            classes VARCHAR[],
+            attributes MAP(VARCHAR, VARCHAR),
+            parent_id INTEGER,
+        );
+        CREATE TABLE IF NOT EXISTS entity_closure (
+            ancestor_id INTEGER NOT NULL,
+            descendant_id INTEGER NOT NULL,
+            depth INTEGER NOT NULL,
+            PRIMARY KEY (ancestor_id, descendant_id),
+        );
+    """)
+
+    # Register matchers and populate entities from the workspace
+    _register_matchers(view_path)
+    _populate_entities_from_matchers(con, view_path)
+
+    # Compile the policy
+    compile_view(con, view, source_file=str(view_path))
+
+    resolved_n = con.execute("SELECT COUNT(*) FROM resolved_properties").fetchone()[0]
+    entity_n = con.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+
+    con.close()
+    print(f"Compiled {db_path}: {entity_n} entities, {resolved_n} resolved properties")
+    return 0
+
+
+def _populate_entities_from_matchers(con, view_path: Path) -> None:
+    """Populate the entities table from workspace matchers."""
+    import contextlib
+
+    base_dir = view_path.resolve().parent
+    entity_id = 0
+
+    # Files
+    with contextlib.suppress(Exception):
+        for p in sorted(base_dir.rglob("*")):
+            if not p.is_file():
+                continue
+            rel = str(p.relative_to(base_dir))
+            skip = (".git/", "__pycache__", ".mypy_cache", ".pytest_cache",
+                    ".ruff_cache", "dist/", ".claude/", ".eggs/")
+            if any(s in rel for s in skip):
+                continue
+            entity_id += 1
+            lang = {".py": "python", ".js": "javascript", ".ts": "typescript",
+                    ".rs": "rust", ".md": "markdown", ".toml": "toml",
+                    ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+                    ".sql": "sql", ".css": "css", ".umw": "umwelt"}.get(p.suffix, "")
+            con.execute(
+                "INSERT INTO entities VALUES (?, 'world', 'file', ?, NULL, MAP{'path': ?, 'name': ?, 'language': ?}, NULL)",
+                [entity_id, rel, rel, p.name, lang],
+            )
+
+    # Tools (from CLI's registered vocabulary — use the known Claude Code tools)
+    tools = [("Read", "os", "2"), ("Write", "os", "3"), ("Edit", "os", "3"),
+             ("Glob", "os", "1"), ("Grep", "os", "1"), ("Bash", "os", "5"),
+             ("Agent", "semantic", "7"), ("WebSearch", "semantic", "2"),
+             ("WebFetch", "semantic", "2")]
+    for name, alt, lvl in tools:
+        entity_id += 1
+        con.execute(
+            "INSERT INTO entities VALUES (?, 'capability', 'tool', ?, NULL, MAP{'name': ?, 'altitude': ?, 'level': ?}, NULL)",
+            [entity_id, name, name, alt, lvl],
+        )
+
+    # Resources + network
+    for kind in ("memory", "wall-time", "cpu-time"):
+        entity_id += 1
+        con.execute(
+            "INSERT INTO entities VALUES (?, 'world', 'resource', ?, NULL, MAP{'kind': ?}, NULL)",
+            [entity_id, kind, kind],
+        )
+    entity_id += 1
+    con.execute(
+        "INSERT INTO entities VALUES (?, 'world', 'network', NULL, NULL, MAP{}, NULL)",
+        [entity_id],
+    )
 
 
 def _cmd_diff(args: argparse.Namespace) -> int:
@@ -310,6 +421,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_compile.add_argument(
         "--world", default=None,
         help="named world environment to resolve against (e.g. dev, ci)",
+    )
+    p_compile.add_argument(
+        "-o", "--output", default=None,
+        help="output file path (for duckdb target; defaults to <view>.duckdb)",
     )
     p_compile.set_defaults(func=_cmd_compile)
 
