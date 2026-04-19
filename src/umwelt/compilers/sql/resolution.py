@@ -84,14 +84,10 @@ WITH agg AS (
     FROM cascade_candidates WHERE comparison = 'pattern-in'
     GROUP BY entity_id, property_name
 )
-SELECT a.entity_id, a.property_name, a.property_value, a.comparison,
-       a.specificity, a.rule_index,
-       c.source_file, c.source_line
-FROM agg a
-LEFT JOIN cascade_candidates c
-    ON a.entity_id = c.entity_id AND a.property_name = c.property_name
-    AND a.specificity = c.specificity AND a.rule_index = c.rule_index
-    AND c.comparison = 'pattern-in';"""
+SELECT entity_id, property_name, property_value, comparison,
+       specificity, rule_index,
+       '' AS source_file, 0 AS source_line
+FROM agg;"""
     else:
         pattern_view = """
 CREATE OR REPLACE VIEW _resolved_pattern AS
@@ -104,14 +100,10 @@ WITH agg AS (
     FROM cascade_candidates WHERE comparison = 'pattern-in'
     GROUP BY entity_id, property_name
 )
-SELECT a.entity_id, a.property_name, a.property_value, a.comparison,
-       a.specificity, a.rule_index,
-       c.source_file, c.source_line
-FROM agg a
-LEFT JOIN cascade_candidates c
-    ON a.entity_id = c.entity_id AND a.property_name = c.property_name
-    AND a.specificity = c.specificity AND a.rule_index = c.rule_index
-    AND c.comparison = 'pattern-in';"""
+SELECT entity_id, property_name, property_value, comparison,
+       specificity, rule_index,
+       '' AS source_file, 0 AS source_line
+FROM agg;"""
 
     union_keyword = "UNION ALL" if is_sqlite else "UNION ALL BY NAME"
     resolved_view_prefix = "CREATE VIEW IF NOT EXISTS" if is_sqlite else "CREATE OR REPLACE VIEW"

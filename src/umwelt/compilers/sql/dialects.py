@@ -41,16 +41,6 @@ class Dialect(ABC):
         """Format a dict as a MAP/JSON literal."""
         ...
 
-    @abstractmethod
-    def distinct_first(
-        self, columns: str, partition_by: str, order_by: str
-    ) -> tuple[str, str]:
-        """Return (select_wrapper, where_filter) for picking the first row per partition.
-
-        For DuckDB: DISTINCT ON. For SQLite: ROW_NUMBER window function.
-        Returns a tuple of (extra_column_expr, filter_clause).
-        """
-        ...
 
 
 class SQLiteDialect(Dialect):
@@ -77,14 +67,6 @@ class SQLiteDialect(Dialect):
     def map_literal(self, mapping: dict[str, str]) -> str:
         return json.dumps(mapping, separators=(",", ":"))
 
-    def distinct_first(
-        self, columns: str, partition_by: str, order_by: str
-    ) -> tuple[str, str]:
-        return (
-            f"ROW_NUMBER() OVER (PARTITION BY {partition_by} ORDER BY {order_by}) AS _rn",
-            "_rn = 1",
-        )
-
 
 class DuckDBDialect(Dialect):
     name = "duckdb"
@@ -107,11 +89,6 @@ class DuckDBDialect(Dialect):
     def map_literal(self, mapping: dict[str, str]) -> str:
         pairs = ",".join(f"'{k}':'{v}'" for k, v in mapping.items())
         return f"MAP{{{pairs}}}"
-
-    def distinct_first(
-        self, columns: str, partition_by: str, order_by: str
-    ) -> tuple[str, str]:
-        return ("", "")  # DuckDB uses DISTINCT ON directly
 
 
 _DIALECTS: dict[str, type[Dialect]] = {

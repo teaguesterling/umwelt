@@ -51,7 +51,8 @@ def _compile_simple(simple: SimpleSelector, alias: str, dialect: Dialect) -> str
     clauses: list[str] = []
 
     if simple.type_name and simple.type_name != "*":
-        clauses.append(f"{alias}.type_name = '{simple.type_name}'")
+        safe_type = simple.type_name.replace("'", "''")
+        clauses.append(f"{alias}.type_name = '{safe_type}'")
 
     if simple.id_value is not None:
         safe_id = simple.id_value.replace("'", "''")
@@ -88,8 +89,9 @@ def _compile_attr_filter(attr, alias: str, dialect: Dialect) -> str:
     if attr.op == "*=":
         return f"{col} LIKE '%{safe_val}%'"
     if attr.op == "~=":
+        safe_name = attr.name.replace("'", "''")
         return (
-            f"EXISTS(SELECT 1 FROM json_each(json_extract({alias}.attributes, '$.{attr.name}')) "
+            f"EXISTS(SELECT 1 FROM json_each(json_extract({alias}.attributes, '$.{safe_name}')) "
             f"WHERE value = '{safe_val}')"
         )
     if attr.op == "|=":
@@ -170,8 +172,6 @@ def _infer_comparison(property_name: str) -> str:
     """Infer comparison type from property name conventions."""
     if property_name.startswith("max-"):
         return "<="
-    if property_name.startswith("min-"):
-        return ">="
     if property_name in ("allow-pattern", "deny-pattern"):
         return "pattern-in"
     return "exact"
