@@ -9,8 +9,8 @@ Organized from atoms to molecules:
 """
 from __future__ import annotations
 
-from tests.test_compilers_sql.conftest import parse_selector, query_ids
-from umwelt.compilers.sql.compiler import compile_selector
+from tests.test_compilers_sql.conftest import parse_selector, parse_view, query_ids
+from umwelt.compilers.sql.compiler import compile_selector, compile_view
 from umwelt.compilers.sql.dialects import SQLiteDialect
 
 
@@ -200,3 +200,37 @@ class TestPseudoClasses:
     def test_glob_no_match(self, populated_db):
         sql = compile_selector(parse_selector('file:glob("*.rs")'), DIALECT)
         assert query_ids(populated_db, sql) == set()
+
+
+# ============================================================================
+# compile_view — full View AST to cascade candidates
+# ============================================================================
+
+class TestCompileView:
+    def test_compile_view_populates_candidates(self, populated_db):
+        view = parse_view('file[path^="src/"] { editable: true; }')
+        compile_view(populated_db, view, DIALECT, source_file="test.umw")
+        count = populated_db.execute("SELECT COUNT(*) FROM cascade_candidates").fetchone()[0]
+        assert count > 0
+
+    def test_compile_view_creates_resolution_views(self, populated_db):
+        view = parse_view('file { editable: false; }')
+        compile_view(populated_db, view, DIALECT, source_file="test.umw")
+        row = populated_db.execute("SELECT COUNT(*) FROM resolved_properties").fetchone()
+        assert row[0] > 0
+
+    def test_compile_view_comparison_inference(self, populated_db):
+        view = parse_view('tool { max-level: 5; }')
+        compile_view(populated_db, view, DIALECT, source_file="test.umw")
+        row = populated_db.execute(
+            "SELECT comparison FROM cascade_candidates WHERE property_name = 'max-level'"
+        ).fetchone()
+        assert row[0] == "<="
+
+    def test_compile_view_pattern_comparison(self, populated_db):
+        view = parse_view('tool[name="Bash"] { allow-pattern: "git *"; }')
+        compile_view(populated_db, view, DIALECT, source_file="test.umw")
+        row = populated_db.execute(
+            "SELECT comparison FROM cascade_candidates WHERE property_name = 'allow-pattern'"
+        ).fetchone()
+        assert row[0] == "pattern-in"

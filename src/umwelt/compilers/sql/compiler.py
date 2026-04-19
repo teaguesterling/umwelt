@@ -13,7 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from umwelt.ast import ComplexSelector, SimpleSelector
+    import sqlite3
+    from umwelt.ast import ComplexSelector, SimpleSelector, View
     from umwelt.compilers.sql.dialects import Dialect
 
 
@@ -130,3 +131,46 @@ def _compile_structural_ancestor(simple: SimpleSelector, alias: str, dialect: Di
         f"WHERE ec.descendant_id = e.id AND ec.depth > 0 AND {where}"
         f")"
     )
+
+
+def compile_view(
+    con: sqlite3.Connection,
+    view: View,
+    dialect: Dialect,
+    source_file: str = "",
+) -> None:
+    """Compile a parsed View into cascade_candidates rows + resolution views."""
+    from umwelt.compilers.sql.resolution import create_resolution_views
+
+    for rule_idx, rule in enumerate(view.rules):
+        for selector in rule.selectors:
+            where_sql = compile_selector(selector, dialect)
+            spec = selector.specificity if hasattr(selector, "specificity") else (0,) * 8
+            spec_str = dialect.format_specificity(spec)
+            src_line = rule.span.line if hasattr(rule, "span") else 0
+
+            for decl in rule.declarations:
+                comparison = _infer_comparison(decl.property_name)
+                value = ", ".join(decl.values)
+                con.execute(
+                    "INSERT INTO cascade_candidates "
+                    "(entity_id, property_name, property_value, comparison, "
+                    "specificity, rule_index, source_file, source_line) "
+                    f"SELECT e.id, ?, ?, ?, ?, ?, ?, ? "
+                    f"FROM entities e WHERE {where_sql}",
+                    (decl.property_name, value, comparison,
+                     spec_str, rule_idx, source_file, src_line),
+                )
+    con.commit()
+    create_resolution_views(con, dialect)
+
+
+def _infer_comparison(property_name: str) -> str:
+    """Infer comparison type from property name conventions."""
+    if property_name.startswith("max-"):
+        return "<="
+    if property_name.startswith("min-"):
+        return ">="
+    if property_name in ("allow-pattern", "deny-pattern"):
+        return "pattern-in"
+    return "exact"
