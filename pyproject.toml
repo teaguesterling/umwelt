@@ -36,6 +36,9 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
 ]
+duckdb = [
+  "duckdb>=1.0",
+]
 
 [project.scripts]
 umwelt = "umwelt.cli:main"
