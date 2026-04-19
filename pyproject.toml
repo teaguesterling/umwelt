@@ -36,6 +36,17 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
 ]
+sql = [
+  "pypika>=0.48",
+]
+duckdb = [
+  "umwelt[sql]",
+  "duckdb>=1.0",
+]
+sqldb = [
+  "umwelt[sql]",
+  "sqlalchemy>=2.0",
+]
 
 [project.scripts]
 umwelt = "umwelt.cli:main"
@@ -64,6 +75,10 @@ files = ["src/umwelt"]
 
 [[tool.mypy.overrides]]
 module = ["tinycss2"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pypika", "pypika.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
