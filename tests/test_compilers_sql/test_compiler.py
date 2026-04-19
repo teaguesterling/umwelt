@@ -120,3 +120,83 @@ class TestClassSelectors:
     def test_class_not_present_matches_nothing(self, populated_db):
         sql = compile_selector(parse_selector("mode.deploy"), DIALECT)
         assert query_ids(populated_db, sql) == set()
+
+
+# ============================================================================
+# Level 5: Compound selectors — cross-axis
+# ============================================================================
+
+class TestCompoundSelectors:
+    def test_two_axis_mode_tool(self, populated_db):
+        sql = compile_selector(parse_selector("mode.implement tool"), DIALECT)
+        assert query_ids(populated_db, sql) == {40, 41, 42, 43, 44, 45, 46}
+
+    def test_two_axis_mode_tool_with_attr(self, populated_db):
+        sql = compile_selector(parse_selector('mode.implement tool[name="Bash"]'), DIALECT)
+        assert query_ids(populated_db, sql) == {42}
+
+    def test_context_qualifier_nonexistent_mode_produces_nothing(self, populated_db):
+        sql = compile_selector(parse_selector("mode.deploy tool"), DIALECT)
+        assert query_ids(populated_db, sql) == set()
+
+    def test_two_axis_principal_tool(self, populated_db):
+        sql = compile_selector(parse_selector("principal#Teague tool"), DIALECT)
+        assert query_ids(populated_db, sql) == {40, 41, 42, 43, 44, 45, 46}
+
+    def test_two_axis_principal_nonexistent(self, populated_db):
+        sql = compile_selector(parse_selector("principal#Nobody tool"), DIALECT)
+        assert query_ids(populated_db, sql) == set()
+
+
+# ============================================================================
+# Level 6: Three-axis compounds
+# ============================================================================
+
+class TestThreeAxisCompounds:
+    def test_principal_mode_tool(self, populated_db):
+        sql = compile_selector(parse_selector('principal#Teague mode.implement tool[name="Bash"]'), DIALECT)
+        assert query_ids(populated_db, sql) == {42}
+
+    def test_three_axis_one_qualifier_fails(self, populated_db):
+        sql = compile_selector(parse_selector('principal#Nobody mode.implement tool[name="Bash"]'), DIALECT)
+        assert query_ids(populated_db, sql) == set()
+
+    def test_three_axis_different_qualifier_fails(self, populated_db):
+        sql = compile_selector(parse_selector('principal#Teague mode.deploy tool[name="Bash"]'), DIALECT)
+        assert query_ids(populated_db, sql) == set()
+
+
+# ============================================================================
+# Level 7: Structural descendants
+# ============================================================================
+
+class TestStructuralDescendants:
+    def test_dir_file_descendant(self, populated_db):
+        sql = compile_selector(parse_selector('dir[name="src"] file'), DIALECT)
+        assert query_ids(populated_db, sql) == {1, 2, 5}
+
+    def test_dir_file_other_dir(self, populated_db):
+        sql = compile_selector(parse_selector('dir[name="tests"] file'), DIALECT)
+        assert query_ids(populated_db, sql) == {3}
+
+    def test_dir_file_nonexistent_dir(self, populated_db):
+        sql = compile_selector(parse_selector('dir[name="lib"] file'), DIALECT)
+        assert query_ids(populated_db, sql) == set()
+
+
+# ============================================================================
+# Level 8: Pseudo-classes
+# ============================================================================
+
+class TestPseudoClasses:
+    def test_glob_pseudo(self, populated_db):
+        sql = compile_selector(parse_selector('file:glob("src/*.py")'), DIALECT)
+        assert query_ids(populated_db, sql) == {1, 2}
+
+    def test_glob_recursive(self, populated_db):
+        sql = compile_selector(parse_selector('file:glob("**/*.py")'), DIALECT)
+        assert query_ids(populated_db, sql) == {1, 2, 3}
+
+    def test_glob_no_match(self, populated_db):
+        sql = compile_selector(parse_selector('file:glob("*.rs")'), DIALECT)
+        assert query_ids(populated_db, sql) == set()
