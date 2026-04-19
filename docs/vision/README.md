@@ -125,7 +125,7 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-**v0.4.0 shipped.** Core + sandbox consumer complete. Includes vocabulary-agnostic core (parser, AST, plugin registry, selector engine, cascade resolver, compiler protocol, CLI), first-party `world`/`capability`/`state` vocabulary, workspace builder, writeback, hook dispatcher, at-rule sugar desugaring, nsjail and bwrap OS-altitude compilers, lackpy-namespace language-altitude compiler, umwelt diff utility, and security audit command. PyPI-ready wheel and sdist. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans.
+**v0.5.2 shipped.** VSM-aligned taxa (principal, audit, operation, coordination, control, intelligence), `use[of=...]` action-axis permission primitive, cross-axis cascade specificity, mode entity with class selectors, `tool.visible` property, `@audit { ... }` at-rule. Evaluation framework with ~35 falsifiable claims. DuckDB compile target (`umwelt compile --target duckdb`) via [ducklog](https://github.com/teaguesterling/ducklog). Kibitzer consumes ducklog policy databases. 562 tests. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
 
 ## Document map
 
@@ -140,11 +140,15 @@ privileged; all are regular consumers of the common-language contract.
 | [`compilers/index.md`](./compilers/index.md) | Compiler taxonomy — implemented and planned, local-vs-remote locality axis, sync-vs-async, how to add new compilers. |
 | [`compilers/nsjail.md`](./compilers/nsjail.md) | Mapping from view constructs to nsjail's protobuf textproto format. |
 | [`compilers/bwrap.md`](./compilers/bwrap.md) | Mapping from view constructs to bwrap's argv format. |
+| [`evaluation-framework.md`](./evaluation-framework.md) | **The claim ledger.** ~35 falsifiable claims, evaluation methodology per category, stopping rules. |
+| [`notes/vsm-alignment.md`](./notes/vsm-alignment.md) | Beer's VSM as the organizing principle for umwelt's taxa. |
+| [`notes/logic-semantics.md`](./notes/logic-semantics.md) | umwelt views as Datalog programs. Landscape: OPA, Cedar, Polar, Binder. What's novel. |
+| [`notes/v05-retrospective.md`](./notes/v05-retrospective.md) | Honest assessment: what emerged, what's right, what's missing. |
 
 Future documents (not yet written):
 
 - `compilers/lackpy-namespace.md` — mapping to lackpy's namespace/tool restriction config
-- `compilers/kibitzer-hooks.md` — mapping to kibitzer hook rules for in-session `@tools` enforcement
+- `compilers/kibitzer-hooks.md` — mapping to kibitzer hook rules for in-session `@tools` enforcement (v0.6)
 - `compilers/delegate-context.md` — the SELinux-coda view-projection compiler (v1.1)
 - `runtime.md` — workspace builder, write-back, hook dispatcher design (currently folded into `package-design.md`)
 - `view-bank.md` — phase 2: storage schema, retrieval, git-history distillation
@@ -164,11 +168,12 @@ umwelt is one piece of a larger specified-band regulation tool suite. Each piece
 
 - **[Ma of Multi-Agent Systems](https://judgementalmonad.com/blog/ma/00-intro)** — the theoretical framework. Specified band, grade lattice, four actors, layered regulation, configuration ratchet. umwelt is a concrete instantiation of the policy layer of this framework.
 - **[Ratchet Fuel](https://judgementalmonad.com/blog/fuel/)** — the practitioner companion. Failures as product roadmap, the two-stage turn, sandbox specs as type signatures. umwelt's ratchet utility implements the crystallization stage for multi-dimension views.
-- **[lackpy](https://github.com/teaguesterling/lackpy)** — language-altitude sandbox. Primary umwelt consumer for delegate orchestration. Registers its own vocabulary and consumes the `compilers/lackpy-namespace` compiler.
-- **[blq](https://github.com/teaguesterling/lq)** — build log query. Captures observations (resource usage, command traces, strace output) that the ratchet utility consumes, and has its own first sandbox spec model that umwelt generalizes.
+- **[ducklog](https://github.com/teaguesterling/ducklog)** — the relational backend. Compiles umwelt views to DuckDB policy databases. Consumers query resolved policy with plain SQL. Includes the selector-to-SQL compiler, comparison-aware cascade resolution, provider views (filesystem, tools, modes), and consumer modules for kibitzer and lackpy. `umwelt compile --target duckdb` uses ducklog.
+- **[kibitzer](https://github.com/teaguesterling/kibitzer)** — observation and coaching at the semantic altitude. Reads mode definitions and tool surfaces from ducklog policy databases (optional) or its own TOML config. First real consumer of the umwelt→ducklog pipeline.
+- **[lackpy](https://github.com/teaguesterling/lackpy)** — language-altitude sandbox. Primary umwelt consumer for delegate orchestration. Consumes the `compilers/lackpy-namespace` compiler or ducklog's `lackpy_tool_config` view.
+- **[blq](https://github.com/teaguesterling/lq)** — build log query. Captures observations (resource usage, command traces, strace output) that the ratchet utility consumes. DuckDB-native — shares the database substrate with ducklog.
 - **[ratchet-detect](https://github.com/teaguesterling/judgementalmonad.com/blob/main/tools/ratchet-detect/)** — observation tool for Claude Code conversation logs. Another observation source for the ratchet utility.
 - **[pluckit](https://github.com/teaguesterling/pluckit)** — CSS selectors for code. Called by umwelt (v1.1+) for selector-level extraction inside `file` blocks. Same CSS-as-variety-attenuator move applied to code AST.
-- **[kibitzer](https://github.com/teaguesterling/kibitzer)** — observation and coaching at the semantic altitude. Consumes umwelt via the `compilers/kibitzer-hooks` compiler.
 - **[agent-riggs](https://github.com/teaguesterling/agent-riggs)** — cross-session auditor. Consumes umwelt views as data for pattern discovery across conversations.
-- **[sitting_duck](https://github.com/teaguesterling/sitting_duck)** — DuckDB extension for CSS-selector AST queries. Underpins pluckit.
+- **[sitting_duck](https://github.com/teaguesterling/sitting_duck)** — DuckDB extension for CSS-selector AST queries. Convergent design with ducklog's selector-to-SQL compiler — same CSS→SQL pattern over different tables.
 - **[nsjail-python](https://github.com/teaguesterling/nsjail-python)** — Python wrapper for nsjail. Not a dependency of umwelt; umwelt emits nsjail's native textproto directly.

@@ -63,6 +63,10 @@ nav:
       - Overview: vision/compilers/index.md
       - nsjail: vision/compilers/nsjail.md
       - bwrap: vision/compilers/bwrap.md
+  - Evaluation Framework: vision/evaluation-framework.md
   - Design Notes:
     - Selector Semantics: vision/notes/selector-semantics.md
     - World as Root: vision/notes/world-as-root-and-linker-role.md
+    - VSM Alignment: vision/notes/vsm-alignment.md
+    - Logic Semantics: vision/notes/logic-semantics.md
+    - v0.5 Retrospective: vision/notes/v05-retrospective.md
