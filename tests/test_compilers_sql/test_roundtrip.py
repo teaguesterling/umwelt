@@ -4,6 +4,11 @@ Port of ducklog's test_roundtrip.py adapted for SQLite.
 """
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from tests.test_compilers_sql.conftest import parse_view
 from umwelt.compilers.sql.compiler import compile_view
@@ -184,6 +189,42 @@ class TestStructuralDescendants:
         assert rv.property("src/auth.py", "editable") == "true"
         assert rv.property("tests/test_auth.py", "editable") == "false"
         rv.assert_a1()
+
+
+_SRC_DIR = str(Path(__file__).resolve().parents[2] / "src")
+
+
+class TestCLIIntegration:
+    def _run_cli(self, *args):
+        env = {**os.environ, "PYTHONPATH": _SRC_DIR}
+        return subprocess.run(
+            [sys.executable, "-m", "umwelt.cli", *args],
+            capture_output=True, text=True, env=env,
+        )
+
+    def test_compile_to_sqlite_db(self, tmp_path):
+        policy = tmp_path / "policy.umw"
+        policy.write_text('file { editable: false; }\nfile[path^="src/"] { editable: true; }')
+        db_path = tmp_path / "policy.db"
+        result = self._run_cli("compile", str(policy), "--target", "sqlite", "--db", str(db_path))
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert db_path.exists()
+
+    def test_compile_sql_to_stdout(self, tmp_path):
+        policy = tmp_path / "policy.umw"
+        policy.write_text('file { visible: true; }')
+        result = self._run_cli("compile", str(policy), "--target", "sqlite")
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "CREATE TABLE" in result.stdout
+
+    def test_compile_sql_to_file(self, tmp_path):
+        policy = tmp_path / "policy.umw"
+        policy.write_text('file { visible: true; }')
+        sql_path = tmp_path / "policy.sql"
+        result = self._run_cli("compile", str(policy), "--target", "sqlite", "-o", str(sql_path))
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert sql_path.exists()
+        assert "CREATE TABLE" in sql_path.read_text()
 
 
 class TestFullPolicy:

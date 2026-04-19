@@ -132,9 +132,9 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    # duckdb target: compile to a policy database via ducklog
-    if args.target == "duckdb":
-        return _cmd_compile_duckdb(args, view)
+    SQL_TARGETS = {"sqlite", "duckdb"}
+    if args.target in SQL_TARGETS:
+        return _cmd_compile_sql(args, view)
 
     _register_matchers(Path(args.file))
 
@@ -149,7 +149,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         names = ", ".join(available) if available else "(none)"
         print(
             f"error: no compiler registered for target {args.target!r}. "
-            f"Available: {names}, duckdb",
+            f"Available: {names}, sqlite, duckdb",
             file=sys.stderr,
         )
         return 1
@@ -167,117 +167,64 @@ def _cmd_compile(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_compile_duckdb(args: argparse.Namespace, view) -> int:
-    """Compile a view to a DuckDB policy database via ducklog.
-
-    Requires ducklog to be installed. The output path defaults to
-    <view-stem>.duckdb alongside the source file.
-    """
+def _cmd_compile_sql(args: argparse.Namespace, view) -> int:
+    """Compile a view to SQL text or a database."""
     try:
-        import duckdb
-        from ducklog.compiler import compile_view
+        from umwelt.compilers.sql.dialects import get_dialect
+        from umwelt.compilers.sql.schema import create_schema
+        from umwelt.compilers.sql.compiler import compile_view
+        from umwelt.compilers.sql.populate import populate_entities
+        from umwelt.compilers.sql.resolution import create_resolution_views, resolution_ddl
     except ImportError:
         print(
-            "error: duckdb target requires the 'ducklog' package. "
-            "Install with: pip install ducklog",
+            "error: SQL compilation requires the 'sql' extras. "
+            "Install with: pip install umwelt[sql]",
             file=sys.stderr,
         )
         return 1
 
+    dialect = get_dialect(args.target)
     view_path = Path(args.file)
-    output = getattr(args, "output", None)
-    if output:
-        db_path = output
-    else:
-        db_path = str(view_path.with_suffix(".duckdb"))
-
-    con = duckdb.connect(db_path)
-
-    # Create minimal entity schema
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS entities (
-            id INTEGER PRIMARY KEY,
-            taxon VARCHAR NOT NULL,
-            type_name VARCHAR NOT NULL,
-            entity_id VARCHAR,
-            classes VARCHAR[],
-            attributes MAP(VARCHAR, VARCHAR),
-            parent_id INTEGER,
-        );
-        CREATE TABLE IF NOT EXISTS entity_closure (
-            ancestor_id INTEGER NOT NULL,
-            descendant_id INTEGER NOT NULL,
-            depth INTEGER NOT NULL,
-            PRIMARY KEY (ancestor_id, descendant_id),
-        );
-    """)
-
-    # Register matchers and populate entities from the workspace
     _register_matchers(view_path)
-    _populate_entities_from_matchers(con, view_path)
 
-    # Compile the policy
-    compile_view(con, view, source_file=str(view_path))
+    db_path = getattr(args, "db", None)
+    output_path = getattr(args, "output", None)
 
-    resolved_n = con.execute("SELECT COUNT(*) FROM resolved_properties").fetchone()[0]
-    entity_n = con.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    # Generate SQL text
+    sql_text = create_schema(dialect)
 
-    con.close()
-    print(f"Compiled {db_path}: {entity_n} entities, {resolved_n} resolved properties")
+    if db_path:
+        if args.target == "sqlite":
+            import sqlite3
+            con = sqlite3.connect(db_path)
+            con.executescript(sql_text)
+            populate_entities(con, view_path.resolve().parent)
+            compile_view(con, view, dialect, source_file=str(view_path))
+            entity_n = con.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+            resolved_n = con.execute("SELECT COUNT(*) FROM resolved_properties").fetchone()[0]
+            con.commit()
+            con.close()
+            print(f"Compiled {db_path}: {entity_n} entities, {resolved_n} resolved properties")
+        elif args.target == "duckdb":
+            try:
+                import duckdb
+            except ImportError:
+                print("error: --db with duckdb target requires: pip install umwelt[duckdb]", file=sys.stderr)
+                return 1
+            print("error: DuckDB --db execution not yet implemented", file=sys.stderr)
+            return 1
+
+    if output_path:
+        sql_with_resolution = sql_text + "\n\n" + resolution_ddl(dialect)
+        Path(output_path).write_text(sql_with_resolution)
+        if not db_path:
+            print(f"SQL written to {output_path}")
+
+    if not db_path and not output_path:
+        sql_with_resolution = sql_text + "\n\n" + resolution_ddl(dialect)
+        print(sql_with_resolution, end="")
+
     return 0
-
-
-def _populate_entities_from_matchers(con, view_path: Path) -> None:
-    """Populate the entities table from workspace matchers."""
-    import contextlib
-
-    base_dir = view_path.resolve().parent
-    entity_id = 0
-
-    # Files
-    with contextlib.suppress(Exception):
-        for p in sorted(base_dir.rglob("*")):
-            if not p.is_file():
-                continue
-            rel = str(p.relative_to(base_dir))
-            skip = (".git/", "__pycache__", ".mypy_cache", ".pytest_cache",
-                    ".ruff_cache", "dist/", ".claude/", ".eggs/")
-            if any(s in rel for s in skip):
-                continue
-            entity_id += 1
-            lang = {".py": "python", ".js": "javascript", ".ts": "typescript",
-                    ".rs": "rust", ".md": "markdown", ".toml": "toml",
-                    ".json": "json", ".yaml": "yaml", ".yml": "yaml",
-                    ".sql": "sql", ".css": "css", ".umw": "umwelt"}.get(p.suffix, "")
-            con.execute(
-                "INSERT INTO entities VALUES (?, 'world', 'file', ?, NULL, MAP{'path': ?, 'name': ?, 'language': ?}, NULL)",
-                [entity_id, rel, rel, p.name, lang],
-            )
-
-    # Tools (from CLI's registered vocabulary — use the known Claude Code tools)
-    tools = [("Read", "os", "2"), ("Write", "os", "3"), ("Edit", "os", "3"),
-             ("Glob", "os", "1"), ("Grep", "os", "1"), ("Bash", "os", "5"),
-             ("Agent", "semantic", "7"), ("WebSearch", "semantic", "2"),
-             ("WebFetch", "semantic", "2")]
-    for name, alt, lvl in tools:
-        entity_id += 1
-        con.execute(
-            "INSERT INTO entities VALUES (?, 'capability', 'tool', ?, NULL, MAP{'name': ?, 'altitude': ?, 'level': ?}, NULL)",
-            [entity_id, name, name, alt, lvl],
-        )
-
-    # Resources + network
-    for kind in ("memory", "wall-time", "cpu-time"):
-        entity_id += 1
-        con.execute(
-            "INSERT INTO entities VALUES (?, 'world', 'resource', ?, NULL, MAP{'kind': ?}, NULL)",
-            [entity_id, kind, kind],
-        )
-    entity_id += 1
-    con.execute(
-        "INSERT INTO entities VALUES (?, 'world', 'network', NULL, NULL, MAP{}, NULL)",
-        [entity_id],
-    )
 
 
 def _cmd_diff(args: argparse.Namespace) -> int:
@@ -424,7 +371,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_compile.add_argument(
         "-o", "--output", default=None,
-        help="output file path (for duckdb target; defaults to <view>.duckdb)",
+        help="output file path for SQL text",
+    )
+    p_compile.add_argument(
+        "-d", "--db", default=None,
+        help="database connection string or file path (executes SQL)",
     )
     p_compile.set_defaults(func=_cmd_compile)
 
