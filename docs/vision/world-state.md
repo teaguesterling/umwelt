@@ -218,18 +218,61 @@ include:
   - "project-specific.world.yml"
 ```
 
-### 3.3 Section semantics
+### 3.3 Shorthand syntax
+
+For common entity types, top-level shorthand keys desugar to `entities:` entries:
+
+```yaml
+# Shorthand form
+tools: [Read, Edit, Grep]
+modes: [implement]
+principal: Teague
+inferencer: claude-sonnet-4-6
+resources:
+  memory: 512MB
+  wall-time: 5m
+```
+
+This is equivalent to:
+
+```yaml
+entities:
+  - type: tool
+    id: Read
+  - type: tool
+    id: Edit
+  - type: tool
+    id: Grep
+  - type: mode
+    id: implement
+  - type: principal
+    id: Teague
+  - type: inferencer
+    id: claude-sonnet-4-6
+  - type: resource
+    id: memory
+    attributes: { limit: 512MB }
+  - type: resource
+    id: wall-time
+    attributes: { limit: 5m }
+```
+
+Shorthands and `entities:` can be mixed in the same file. Shorthands are expanded before `entities:` is processed, so explicit entries can override shorthand values.
+
+The shorthand keys are determined by the registered vocabulary — each taxon can declare which of its entity types support shorthand syntax. The sandbox vocabulary registers shorthands for `tool`, `mode`, `principal`, `inferencer`, and `resource`.
+
+### 3.4 Section semantics
 
 #### `entities:` — explicit declaration
 
 Named entities with explicit types, IDs, classes, and attributes. These are always present in the world regardless of what discovery finds. Analogous to `docker run` arguments or Terraform resources — you declare what exists.
 
 Each entity is a map with:
-- `type` (required): entity type name from the vocabulary
-- `id` (required): unique identifier within type
-- `classes` (optional): list of class names for class selectors (`.implement`, `.dangerous`)
-- `attributes` (optional): map of attribute values for attribute selectors (`[path^="src/"]`)
-- `parent` (optional): ID of parent entity for hierarchy
+- `type` (required): entity type name from the vocabulary → maps to `entities.type_name` in SQL
+- `id` (required): unique identifier within type → maps to `entities.entity_id` in SQL
+- `classes` (optional): list of class names for class selectors (`.implement`, `.dangerous`) → JSON array in `entities.classes`
+- `attributes` (optional): map of attribute values for attribute selectors (`[path^="src/"]`) → JSON object in `entities.attributes`
+- `parent` (optional): ID of parent entity for hierarchy → `entities.parent_id` FK
 
 #### `discover:` — implicit enumeration
 
@@ -238,6 +281,8 @@ Recipes that enumerate entities from external sources. Each recipe names a regis
 Discovery runs at world-materialization time. The results are entity rows, identical in shape to explicit entities. Explicit entities and discovered entities coexist; if both declare the same `(type, id)` pair, the explicit declaration wins.
 
 Matchers registered via umwelt's plugin system participate automatically. No hardcoded matcher list.
+
+**Matcher protocol extension.** Today's `MatcherProtocol` has `match_type(type_name) -> list[Entity]` with no configuration. Discovery recipes require extending the protocol to accept configuration (root paths, include/exclude patterns, depth limits). The existing matchers continue to work unchanged — discovery configuration is an optional capability layered on top.
 
 #### `projections:` — mounted references
 
@@ -289,7 +334,20 @@ include:
 
 The base world defines common tools, modes, and discovery patterns. The project world adds project-specific entities. The delegation world narrows for a specific task. Each layer is independently authored and versioned.
 
-### 3.4 The container analogy
+**Entity removal.** To *remove* an entity from an included base (rather than override it), use the `exclude:` key alongside `include:`:
+
+```yaml
+include:
+  - "base-tools.world.yml"
+
+exclude:
+  - "tool#Bash"          # remove Bash from the included tools
+  - "tool#Write"         # remove Write too
+```
+
+Exclusions are processed after all includes are merged. The excluded entities are removed from the world entirely — they cannot be matched by policy. This is the "narrowing" pattern for delegation: include a broad base, then exclude what the delegate shouldn't have.
+
+### 3.5 The container analogy
 
 A world file is a container spec for an agent's environment:
 
@@ -406,7 +464,7 @@ Provenance is metadata, not policy. It tells auditors *how* the entity entered t
 
 ## 5. SQL schema extensions
 
-The world state layer adds tables to the SQL compiler's schema (see [SQL compiler design](../superpowers/specs/2026-04-18-sql-compiler-design.md)):
+The world state layer adds tables to the SQL compiler's schema (see [SQL Schema Reference](../guide/sql-schema.md)):
 
 ### 5.1 New tables
 
@@ -449,22 +507,26 @@ CREATE TABLE fixed_constraints (
 
 ### 5.2 Resolution interaction
 
-Fixed constraints apply *after* cascade resolution. The resolution views remain unchanged; a final clamping view or post-processing step applies fixed constraints:
+Fixed constraints apply *after* cascade resolution. At compile time, each fixed constraint's selector is compiled to a SQL WHERE clause (using the same selector-to-SQL compiler the cascade uses) and matched entities are inserted into a materialized `fixed_constraints` table with concrete `entity_id` values — not selector text. This avoids runtime selector evaluation in SQLite.
 
 ```sql
+-- fixed_constraints is materialized at compile time (entity_id, not selector)
+-- The compiler runs: INSERT INTO fixed_constraints (entity_id, property_name, property_value)
+--   SELECT e.id, ?, ? FROM entities e WHERE <compiled_selector>
+
 CREATE VIEW effective_properties AS
 SELECT
     rp.entity_id,
     rp.property_name,
-    COALESCE(fc.property_value, rp.resolved_value) AS effective_value,
+    CASE WHEN fc.id IS NOT NULL THEN fc.property_value
+         ELSE rp.property_value END AS effective_value,
     CASE WHEN fc.id IS NOT NULL THEN 'fixed' ELSE 'cascade' END AS source
 FROM resolved_properties rp
 LEFT JOIN fixed_constraints fc
-    ON rp.property_name = fc.property_name
-    AND entity_matches_selector(rp.entity_id, fc.selector)
+    ON fc.entity_id = rp.entity_id AND fc.property_name = rp.property_name
 ```
 
-The `entity_matches_selector` function reuses the same selector-to-SQL compilation the cascade compiler uses.
+The `fixed_constraints` table stores concrete `(entity_id, property_name, property_value)` triples. The selector text is stored separately for audit/provenance but is not evaluated at query time.
 
 ---
 
@@ -496,8 +558,14 @@ world = load_world("delegate.world.yml")
 snapshot = materialize(world, level="full")
 
 # Use with SQL compiler
+import sqlite3
 from umwelt.compilers.sql import compile_to_db
-compile_to_db(view, world=world, db_path="policy.db")
+from umwelt.compilers.sql.dialects import SQLiteDialect
+
+con = sqlite3.connect("policy.db")
+compile_to_db(con, view, SQLiteDialect(), world=world)
+# Note: the `world=` parameter is a planned extension to compile_to_db.
+# Today it accepts `base_dir=` for matcher-based discovery.
 ```
 
 ### 6.3 Relationship to existing matchers

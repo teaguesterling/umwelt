@@ -57,6 +57,7 @@ nav:
       - Schema Reference: guide/sql-schema.md
   - Vision:
     - Overview: vision/README.md
+    - World State: vision/world-state.md
     - Policy Layer: vision/policy-layer.md
     - Entity Model: vision/entity-model.md
     - View Format: vision/view-format.md
