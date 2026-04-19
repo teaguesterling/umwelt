@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import pytest
 from pathlib import Path
+
 from umwelt.compilers.sql.dialects import SQLiteDialect
+from umwelt.compilers.sql.populate import entity_to_row, populate_entities
 from umwelt.compilers.sql.schema import create_schema
-from umwelt.compilers.sql.populate import populate_entities, entity_to_row
 
 
 class TestEntityToRow:
@@ -55,8 +55,8 @@ class TestPopulateEntities:
         con = sqlite3.connect(":memory:")
         con.executescript(create_schema(dialect))
 
-        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
         from umwelt.registry.taxa import _ACTIVE_STATE, RegistryState
+        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
         # Use a fresh registry to avoid conflicts with other tests
         token = _ACTIVE_STATE.set(RegistryState())

@@ -5,12 +5,13 @@ Verifies comparison-aware resolution: exact (highest specificity wins),
 """
 from __future__ import annotations
 
-import json
 import sqlite3
+
 import pytest
+
 from umwelt.compilers.sql.dialects import SQLiteDialect
-from umwelt.compilers.sql.schema import create_schema
 from umwelt.compilers.sql.resolution import create_resolution_views
+from umwelt.compilers.sql.schema import create_schema
 
 
 @pytest.fixture

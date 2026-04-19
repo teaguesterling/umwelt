@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
+
 import pytest
+
 from umwelt.compilers.sql.dialects import SQLiteDialect
 from umwelt.compilers.sql.schema import create_schema
 
@@ -88,11 +90,11 @@ def populated_db(db):
 
 def parse_selector(css_text: str):
     """Parse a CSS selector string via umwelt's parser."""
+    import contextlib
+
     from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-    try:
+    with contextlib.suppress(Exception):
         register_sandbox_vocabulary()
-    except Exception:
-        pass
     from umwelt.parser import parse
     view = parse(css_text + " { _test: true; }", validate=False)
     assert view.rules, f"no rules parsed from: {css_text}"
@@ -101,11 +103,11 @@ def parse_selector(css_text: str):
 
 def parse_view(css_text: str):
     """Parse a full .umw view string."""
+    import contextlib
+
     from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-    try:
+    with contextlib.suppress(Exception):
         register_sandbox_vocabulary()
-    except Exception:
-        pass
     from umwelt.parser import parse
     return parse(css_text, validate=False)
 

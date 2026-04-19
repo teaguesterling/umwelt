@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import sqlite3
+
     from umwelt.compilers.sql.dialects import Dialect
 
 

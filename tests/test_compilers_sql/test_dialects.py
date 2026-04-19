@@ -1,8 +1,7 @@
 """Tests for SQL dialect abstraction layer."""
 from __future__ import annotations
 
-import pytest
-from umwelt.compilers.sql.dialects import SQLiteDialect, DuckDBDialect
+from umwelt.compilers.sql.dialects import DuckDBDialect, SQLiteDialect
 
 
 class TestSQLiteDialect:

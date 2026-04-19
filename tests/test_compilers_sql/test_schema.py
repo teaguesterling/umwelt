@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import sqlite3
+
 import pytest
-from umwelt.compilers.sql.schema import create_schema, EXPECTED_TABLES
+
 from umwelt.compilers.sql.dialects import SQLiteDialect
+from umwelt.compilers.sql.schema import EXPECTED_TABLES, create_schema
 
 
 @pytest.fixture

@@ -13,7 +13,6 @@ from tests.test_compilers_sql.conftest import parse_selector, parse_view, query_
 from umwelt.compilers.sql.compiler import compile_selector, compile_view
 from umwelt.compilers.sql.dialects import SQLiteDialect
 
-
 DIALECT = SQLiteDialect()
 
 

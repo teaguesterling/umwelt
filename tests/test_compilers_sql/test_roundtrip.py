@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from tests.test_compilers_sql.conftest import parse_view
 from umwelt.compilers.sql.compiler import compile_view
 from umwelt.compilers.sql.dialects import SQLiteDialect
-
 
 DIALECT = SQLiteDialect()
 

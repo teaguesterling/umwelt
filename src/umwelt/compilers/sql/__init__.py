@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import sqlite3
     from pathlib import Path
+
     from umwelt.ast import View
     from umwelt.compilers.sql.dialects import Dialect
 
@@ -40,7 +41,6 @@ def compile_to_sql(
     source_file: str = "",
 ) -> str:
     """Compile a view to SQL text (schema + inserts + resolution views)."""
-    import sqlite3 as _sqlite3
     from umwelt.compilers.sql.resolution import resolution_ddl
     from umwelt.compilers.sql.schema import create_schema
 

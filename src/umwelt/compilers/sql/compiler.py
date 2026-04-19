@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import sqlite3
+
     from umwelt.ast import ComplexSelector, SimpleSelector, View
     from umwelt.compilers.sql.dialects import Dialect
 
@@ -41,7 +42,7 @@ def compile_selector(selector: ComplexSelector, dialect: Dialect) -> str:
         else:
             qualifier_clauses.append(_compile_context_qualifier(qual.selector, q_alias, dialect))
 
-    all_clauses = [target_sql] + qualifier_clauses
+    all_clauses = [target_sql, *qualifier_clauses]
     return " AND ".join(all_clauses)
 
 
