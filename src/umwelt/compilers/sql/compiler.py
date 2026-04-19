@@ -83,20 +83,28 @@ def _compile_attr_filter(attr, alias: str, dialect: Dialect) -> str:
     if attr.op == "=":
         return f"{col} = '{safe_val}'"
     if attr.op == "^=":
-        return f"{col} LIKE '{safe_val}%'"
+        like_val = _escape_like(attr.value or "")
+        return f"{col} LIKE '{like_val}%' ESCAPE '\\'"
     if attr.op == "$=":
-        return f"{col} LIKE '%{safe_val}'"
+        like_val = _escape_like(attr.value or "")
+        return f"{col} LIKE '%{like_val}' ESCAPE '\\'"
     if attr.op == "*=":
-        return f"{col} LIKE '%{safe_val}%'"
+        like_val = _escape_like(attr.value or "")
+        return f"{col} LIKE '%{like_val}%' ESCAPE '\\'"
     if attr.op == "~=":
-        safe_name = attr.name.replace("'", "''")
-        return (
-            f"EXISTS(SELECT 1 FROM json_each(json_extract({alias}.attributes, '$.{safe_name}')) "
-            f"WHERE value = '{safe_val}')"
-        )
+        return dialect.json_attr_list_contains(alias, attr.name, attr.value or "")
     if attr.op == "|=":
-        return f"({col} = '{safe_val}' OR {col} LIKE '{safe_val}-%')"
-    return "TRUE"
+        like_val = _escape_like(attr.value or "")
+        return f"({col} = '{safe_val}' OR {col} LIKE '{like_val}-%' ESCAPE '\\')"
+    raise ValueError(f"unknown attribute operator: {attr.op!r}")
+
+
+def _escape_like(val: str) -> str:
+    """Escape LIKE metacharacters and single quotes for safe interpolation."""
+    val = val.replace("\\", "\\\\")
+    val = val.replace("%", "\\%")
+    val = val.replace("_", "\\_")
+    return val.replace("'", "''")
 
 
 def _compile_pseudo(pseudo, alias: str, dialect: Dialect) -> str | None:
@@ -105,13 +113,16 @@ def _compile_pseudo(pseudo, alias: str, dialect: Dialect) -> str | None:
         pattern = (pseudo.argument or "").strip().strip("'\"")
         sql_pattern = _glob_to_like(pattern)
         col = dialect.json_attr(alias, "path")
-        return f"{col} LIKE '{sql_pattern}'"
+        return f"{col} LIKE '{sql_pattern}' ESCAPE '\\'"
     return None
 
 
 def _glob_to_like(pattern: str) -> str:
     """Convert a glob pattern to a SQL LIKE pattern."""
-    result = pattern.replace("**", "\x00")
+    result = pattern.replace("\\", "\\\\")
+    result = result.replace("%", "\\%")
+    result = result.replace("_", "\\_")
+    result = result.replace("**", "\x00")
     result = result.replace("*", "%")
     result = result.replace("?", "_")
     result = result.replace("\x00", "%")
@@ -119,7 +130,13 @@ def _glob_to_like(pattern: str) -> str:
 
 
 def _compile_context_qualifier(simple: SimpleSelector, alias: str, dialect: Dialect) -> str:
-    """Compile a cross-axis context qualifier to an EXISTS subquery."""
+    """Compile a cross-axis context qualifier to an EXISTS subquery.
+
+    Semantics: checks global existence — the qualifier matches if ANY entity
+    of the given type/id exists in the database, not scoped to an active
+    session or principal. Multi-principal filtering requires the populator
+    to only insert the active principal's entity.
+    """
     where = _compile_simple(simple, alias, dialect)
     return f"EXISTS (SELECT 1 FROM entities {alias} WHERE {where})"
 

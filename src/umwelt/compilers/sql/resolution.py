@@ -105,7 +105,7 @@ SELECT entity_id, property_name, property_value, comparison,
        '' AS source_file, 0 AS source_line
 FROM agg;"""
 
-    union_keyword = "UNION ALL" if is_sqlite else "UNION ALL BY NAME"
+    union_keyword = "UNION ALL"
     resolved_view_prefix = "CREATE VIEW IF NOT EXISTS" if is_sqlite else "CREATE OR REPLACE VIEW"
 
     resolved_view = f"""

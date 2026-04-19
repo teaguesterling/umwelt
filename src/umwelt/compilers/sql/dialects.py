@@ -41,6 +41,11 @@ class Dialect(ABC):
         """Format a dict as a MAP/JSON literal."""
         ...
 
+    @abstractmethod
+    def json_attr_list_contains(self, alias: str, key: str, value: str) -> str:
+        """Check if a JSON attribute's array value contains an element."""
+        ...
+
 
 
 class SQLiteDialect(Dialect):
@@ -67,6 +72,14 @@ class SQLiteDialect(Dialect):
     def map_literal(self, mapping: dict[str, str]) -> str:
         return json.dumps(mapping, separators=(",", ":"))
 
+    def json_attr_list_contains(self, alias: str, key: str, value: str) -> str:
+        safe_key = key.replace("'", "''")
+        safe_val = value.replace("'", "''")
+        return (
+            f"EXISTS(SELECT 1 FROM json_each(json_extract({alias}.attributes, '$.{safe_key}')) "
+            f"WHERE value = '{safe_val}')"
+        )
+
 
 class DuckDBDialect(Dialect):
     name = "duckdb"
@@ -83,12 +96,20 @@ class DuckDBDialect(Dialect):
         return f"[{','.join(str(s) for s in spec)}]::INTEGER[]"
 
     def array_literal(self, values: list[str]) -> str:
-        inner = ",".join(f"'{v}'" for v in values)
+        inner = ",".join(f"'{v.replace(chr(39), chr(39)*2)}'" for v in values)
         return f"[{inner}]"
 
     def map_literal(self, mapping: dict[str, str]) -> str:
-        pairs = ",".join(f"'{k}':'{v}'" for k, v in mapping.items())
+        pairs = ",".join(
+            f"'{k.replace(chr(39), chr(39)*2)}':'{v.replace(chr(39), chr(39)*2)}'"
+            for k, v in mapping.items()
+        )
         return f"MAP{{{pairs}}}"
+
+    def json_attr_list_contains(self, alias: str, key: str, value: str) -> str:
+        safe_key = key.replace("'", "''")
+        safe_val = value.replace("'", "''")
+        return f"list_contains({alias}.attributes['{safe_key}'], '{safe_val}')"
 
 
 _DIALECTS: dict[str, type[Dialect]] = {

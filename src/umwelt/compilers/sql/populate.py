@@ -69,7 +69,6 @@ def _extract_attributes(entity: Any) -> dict[str, str]:
 def populate_entities(con: Any, base_dir: Path) -> None:
     """Query all registered matchers and INSERT their entities."""
     state = _current_state()
-    entity_id = 0
 
     for taxon, matcher in state.matchers.items():
         type_names = _get_type_names(taxon)
@@ -79,12 +78,11 @@ def populate_entities(con: Any, base_dir: Path) -> None:
             except Exception:
                 continue
             for entity in entities:
-                entity_id += 1
                 row = entity_to_row(taxon, type_name, entity)
                 con.execute(
-                    "INSERT INTO entities (id, taxon, type_name, entity_id, classes, attributes, depth) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 0)",
-                    (entity_id, row["taxon"], row["type_name"], row["entity_id"],
+                    "INSERT INTO entities (taxon, type_name, entity_id, classes, attributes, depth) "
+                    "VALUES (?, ?, ?, ?, ?, 0)",
+                    (row["taxon"], row["type_name"], row["entity_id"],
                      row["classes"], row["attributes"]),
                 )
 

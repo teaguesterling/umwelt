@@ -40,10 +40,24 @@ def compile_to_sql(
     base_dir: Path | None = None,
     source_file: str = "",
 ) -> str:
-    """Compile a view to SQL text (schema + inserts + resolution views)."""
-    from umwelt.compilers.sql.resolution import resolution_ddl
-    from umwelt.compilers.sql.schema import create_schema
+    """Compile a view to a self-contained SQL script.
 
-    parts = [create_schema(dialect)]
-    parts.append(resolution_ddl(dialect))
-    return "\n\n".join(parts)
+    Builds an in-memory SQLite database, compiles the view into it,
+    then dumps the full SQL (schema + inserts + resolution views).
+    """
+    import sqlite3 as _sqlite3
+
+    con = _sqlite3.connect(":memory:")
+    try:
+        compile_to_db(con, view, dialect, base_dir=base_dir, source_file=source_file)
+        return _dump_sql(con)
+    finally:
+        con.close()
+
+
+def _dump_sql(con: sqlite3.Connection) -> str:
+    """Dump an in-memory database to a SQL script."""
+    lines: list[str] = []
+    for line in con.iterdump():
+        lines.append(line)
+    return "\n".join(lines)
