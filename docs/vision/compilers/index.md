@@ -4,7 +4,7 @@
 
 ## Where compilers live
 
-**Core umwelt ships zero concrete compilers.** `umwelt.compilers` defines the `Compiler` protocol and the registry; concrete compilers live in consumers. The first-party sandbox consumer (`umwelt.sandbox.compilers.*`) ships nsjail, bwrap, lackpy-namespace, and kibitzer-hooks as its first-class targets. Third-party consumers register their own compilers via the same API — `register_compiler("<name>", CompilerImpl())` at import time — and become available to `umwelt compile --target <name>` without any modification to core umwelt.
+**Core umwelt ships one infrastructure compiler: `umwelt.compilers.sql`, which compiles views to queryable SQLite databases.** This is an IR compiler — it materializes the cascade into a relational format for downstream consumers to query, rather than targeting an enforcement tool directly. All enforcement-target compilers live in consumers. The first-party sandbox consumer (`umwelt.sandbox.compilers.*`) ships nsjail, bwrap, lackpy-namespace, and kibitzer-hooks as its first-class targets. Third-party consumers register their own compilers via the same API — `register_compiler("<name>", CompilerImpl())` at import time — and become available to `umwelt compile --target <name>` without any modification to core umwelt.
 
 This split is load-bearing: it's what lets umwelt be *vocabulary-agnostic* at the core. A consumer that registers a non-sandbox taxonomy (e.g., an access-control domain) can provide its own compilers against its own entities without waiting for core umwelt to learn about its vocabulary.
 
@@ -54,6 +54,7 @@ Compilers with full design docs in this directory. Implementation may still be p
 
 | Compiler | Target format | Altitude | Locality | Status | Doc |
 |---|---|---|---|---|---|
+| `sql` | SQLite database | IR | local | implemented | [Schema](../../guide/sql-schema.md), [Integration](../../guide/sql-integration.md) |
 | `nsjail` | protobuf textproto | OS | local | design complete | [`nsjail.md`](./nsjail.md) |
 | `bwrap` | argv list | OS | local | design complete | [`bwrap.md`](./bwrap.md) |
 

@@ -517,9 +517,11 @@ Straightforward subprocess runner for `hook[event="after-change"] { run: "..." }
 3. Collect `HookResult` objects with `command`, `stdout`, `stderr`, `returncode`, `duration_seconds`, `timed_out`.
 4. Return the list. Hook failures do not abort subsequent hooks in v1 — the dispatcher runs all of them and reports.
 
-### Core compilers (protocol only)
+### Core compilers
 
-Core umwelt ships zero concrete compilers. The `compilers/protocol.py` module defines the `Compiler` protocol and the registry; concrete compilers ship in consumers (`umwelt.sandbox.compilers.*`, third-party packages, etc.). This keeps core umwelt free of any coupling to specific enforcement tools.
+Core umwelt ships one infrastructure compiler: **`compilers/sql/`**, which compiles views to queryable SQLite databases. This is an IR (intermediate representation) compiler — it materializes the entity model, cascade candidates, and resolution views into a relational format that downstream consumers can query directly. SQLite was chosen because it's stdlib (no extra dependency), DuckDB can read SQLite files natively via `sqlite_scan`, and the resulting `.db` files are portable, inspectable, and cacheable.
+
+The `compilers/protocol.py` module defines the `Compiler` protocol and the registry; enforcement-target compilers ship in consumers (`umwelt.sandbox.compilers.*`, third-party packages, etc.). This keeps core umwelt free of coupling to specific enforcement tools. The SQL compiler is the exception — it targets a general-purpose data format rather than an enforcement tool, and it has no dependencies beyond the stdlib `sqlite3` module.
 
 ### Sandbox compilers
 

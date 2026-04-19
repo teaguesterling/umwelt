@@ -52,6 +52,9 @@ nav:
     - Writing Views: guide/writing-views.md
     - Entity Reference: guide/entity-reference.md
     - How It Works: guide/how-it-works.md
+    - SQL Compiler:
+      - Integration Guide: guide/sql-integration.md
+      - Schema Reference: guide/sql-schema.md
   - Vision:
     - Overview: vision/README.md
     - Policy Layer: vision/policy-layer.md
