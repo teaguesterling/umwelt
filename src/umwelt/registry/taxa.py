@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from umwelt.errors import RegistryError
 
@@ -44,6 +44,9 @@ class RegistryState:
     matchers: dict[str, MatcherProtocol] = field(default_factory=dict)
     # Multiple validators per taxon allowed; they all run in registration order.
     validators: dict[str, list[ValidatorProtocol]] = field(default_factory=dict)
+    # Keyed by shorthand key (e.g. "tools"). Values are ShorthandDef instances;
+    # typed as Any to avoid a circular import with umwelt.world.shorthands.
+    shorthands: dict[str, Any] = field(default_factory=dict)
 
 
 _GLOBAL_STATE = RegistryState()
