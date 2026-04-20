@@ -31,3 +31,15 @@ def test_scope_isolation():
         register_shorthand(key="tools", entity_type="tool", form="list")
     with registry_scope():
         assert get_shorthand("tools") is None
+
+
+def test_sandbox_vocabulary_registers_shorthands():
+    from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
+
+    with registry_scope():
+        register_sandbox_vocabulary()
+        assert get_shorthand("tools") is not None
+        assert get_shorthand("modes") is not None
+        assert get_shorthand("principal") is not None
+        assert get_shorthand("inferencer") is not None
+        assert get_shorthand("resources") is not None
