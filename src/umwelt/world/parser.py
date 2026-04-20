@@ -31,7 +31,10 @@ def load_world(path: str | Path) -> WorldFile:
     """
     path = Path(path)
     text = path.read_text()  # raises FileNotFoundError naturally
-    data = yaml.safe_load(text)
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise WorldParseError(f"invalid YAML: {exc}") from exc
     if data is None:
         data = {}
 
@@ -158,16 +161,16 @@ def _expand_shorthands(
                 provenance=Provenance.EXPLICIT,
             ))
         elif shorthand.form == "map" and isinstance(value, dict):
-                for k, v in value.items():
-                    attrs: dict[str, Any] = {}
-                    if shorthand.attribute_key is not None:
-                        attrs[shorthand.attribute_key] = str(v)
-                    entities.append(DeclaredEntity(
-                        type=shorthand.entity_type,
-                        id=str(k),
-                        attributes=attrs,
-                        provenance=Provenance.EXPLICIT,
-                    ))
+            for k, v in value.items():
+                attrs: dict[str, Any] = {}
+                if shorthand.attribute_key is not None:
+                    attrs[shorthand.attribute_key] = str(v)
+                entities.append(DeclaredEntity(
+                    type=shorthand.entity_type,
+                    id=str(k),
+                    attributes=attrs,
+                    provenance=Provenance.EXPLICIT,
+                ))
 
     return entities, warnings
 

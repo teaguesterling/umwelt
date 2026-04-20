@@ -139,3 +139,9 @@ class TestEdgeCases:
     def test_file_not_found(self):
         with pytest.raises(FileNotFoundError):
             load_world(Path("/nonexistent/test.world.yml"))
+
+    def test_malformed_yaml_raises(self, tmp_path):
+        p = tmp_path / "t.world.yml"
+        p.write_text("[invalid: yaml: {broken")
+        with pytest.raises(WorldParseError, match="invalid YAML"):
+            load_world(p)
