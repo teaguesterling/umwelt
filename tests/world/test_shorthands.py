@@ -1,7 +1,7 @@
 """Tests for the shorthand registry."""
 
 from umwelt.registry.taxa import registry_scope
-from umwelt.world.shorthands import ShorthandDef, get_shorthand, register_shorthand
+from umwelt.world.shorthands import get_shorthand, register_shorthand
 
 
 def test_register_and_retrieve():
