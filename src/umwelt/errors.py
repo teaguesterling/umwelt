@@ -40,3 +40,11 @@ class ViewValidationError(ViewError):
 
 class RegistryError(UmweltError):
     """Raised on plugin-registry collisions or lookup failures."""
+
+
+class WorldError(UmweltError):
+    """Base class for world file errors."""
+
+
+class WorldParseError(WorldError):
+    """Raised when a .world.yml file has structural problems."""
