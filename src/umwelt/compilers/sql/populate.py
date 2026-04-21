@@ -137,3 +137,75 @@ def _rebuild_closure(con: Any) -> None:
         )
         SELECT DISTINCT * FROM closure;
     """)
+
+
+def populate_from_world(con: Any, world: Any) -> None:
+    """Insert DeclaredEntity instances from a WorldFile into the entities table.
+
+    World file entities win on (type_name, entity_id) collision with
+    existing matcher-discovered entities.
+    """
+    for entity in world.entities:
+        _upsert_declared_entity(con, entity)
+
+    for proj in world.projections:
+        _upsert_projection(con, proj)
+
+    con.commit()
+    _rebuild_closure(con)
+
+
+def _upsert_declared_entity(con: Any, entity: Any) -> None:
+    classes_json = json.dumps(list(entity.classes)) if entity.classes else None
+    attrs_json = json.dumps(entity.attributes) if entity.attributes else None
+
+    existing = con.execute(
+        "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",
+        (entity.type, entity.id),
+    ).fetchone()
+
+    if existing:
+        con.execute(
+            "UPDATE entities SET classes = ?, attributes = ? WHERE id = ?",
+            (classes_json, attrs_json, existing[0]),
+        )
+    else:
+        taxon = _guess_taxon(entity.type)
+        con.execute(
+            "INSERT INTO entities (taxon, type_name, entity_id, classes, attributes, depth) "
+            "VALUES (?, ?, ?, ?, ?, 0)",
+            (taxon, entity.type, entity.id, classes_json, attrs_json),
+        )
+
+
+def _upsert_projection(con: Any, proj: Any) -> None:
+    attrs_json = json.dumps(proj.attributes) if proj.attributes else None
+
+    existing = con.execute(
+        "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",
+        (proj.type, proj.id),
+    ).fetchone()
+
+    if existing:
+        con.execute(
+            "UPDATE entities SET attributes = ? WHERE id = ?",
+            (attrs_json, existing[0]),
+        )
+    else:
+        taxon = _guess_taxon(proj.type)
+        con.execute(
+            "INSERT INTO entities (taxon, type_name, entity_id, attributes, depth) "
+            "VALUES (?, ?, ?, ?, 0)",
+            (taxon, proj.type, proj.id, attrs_json),
+        )
+
+
+def _guess_taxon(type_name: str) -> str:
+    try:
+        from umwelt.registry.entities import resolve_entity_type
+        taxa = resolve_entity_type(type_name)
+        if taxa:
+            return taxa[0]
+    except Exception:
+        pass
+    return type_name
