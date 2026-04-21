@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from umwelt.errors import PolicyCompilationError, PolicyDenied
+from umwelt.errors import PolicyDenied
 
 logger = logging.getLogger("umwelt.policy")
 
@@ -224,7 +224,11 @@ class PolicyEngine:
         result = trace_entity(con, type=type, id=id, property=property)
         logger.debug(
             "trace",
-            extra={"entity": f"{type}#{id}", "property": property, "candidates": len(result.candidates)},
+            extra={
+                "entity": f"{type}#{id}",
+                "property": property,
+                "candidates": len(result.candidates),
+            },
         )
         return result
 
@@ -247,7 +251,12 @@ class PolicyEngine:
             if actual != expected_val:
                 logger.warning(
                     "require_denied",
-                    extra={"entity": f"{type}#{id}", "property": prop_name, "expected": expected_val, "actual": actual},
+                    extra={
+                        "entity": f"{type}#{id}",
+                        "property": prop_name,
+                        "expected": expected_val,
+                        "actual": actual,
+                    },
                 )
                 raise PolicyDenied(
                     entity=f"{type}#{id}",
@@ -318,7 +327,11 @@ class PolicyEngine:
             self._pending_entities = []
 
         # Drop and recreate resolution views before adding new rules
-        for view_name in ("resolved_properties", "_resolved_exact", "_resolved_cap", "_resolved_pattern"):
+        _resolution_views = (
+            "resolved_properties", "_resolved_exact",
+            "_resolved_cap", "_resolved_pattern",
+        )
+        for view_name in _resolution_views:
             con.execute(f"DROP VIEW IF EXISTS {view_name}")
 
         for css_text in self._pending_stylesheets:
@@ -369,7 +382,8 @@ class PolicyEngine:
 
         # Export entities to world YAML
         rows = con.execute(
-            "SELECT entity_id, type_name, classes, attributes FROM entities ORDER BY type_name, entity_id"
+            "SELECT entity_id, type_name, classes, attributes "
+            "FROM entities ORDER BY type_name, entity_id"
         ).fetchall()
         entities_out = []
         for entity_id, type_name, classes_json, attrs_json in rows:
@@ -383,7 +397,10 @@ class PolicyEngine:
             entities_out.append(entry)
 
         world_path = Path(world)
-        world_path.write_text(yaml.dump({"entities": entities_out}, default_flow_style=False, sort_keys=False))
+        world_data = {"entities": entities_out}
+        world_path.write_text(
+            yaml.dump(world_data, default_flow_style=False, sort_keys=False)
+        )
 
         # Export stylesheet: copy original if tracked, otherwise emit a comment
         stylesheet_path = Path(stylesheet)

@@ -6,7 +6,7 @@ import pytest
 from umwelt.compilers.sql.dialects import SQLiteDialect
 from umwelt.compilers.sql.populate import populate_from_world
 from umwelt.compilers.sql.schema import create_schema
-from umwelt.world.model import DeclaredEntity, Projection, Provenance, WorldFile
+from umwelt.world.model import DeclaredEntity, Projection, WorldFile
 
 
 @pytest.fixture

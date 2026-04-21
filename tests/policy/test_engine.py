@@ -73,10 +73,6 @@ class TestDataModels:
             c.value = "5"
 
 
-import json
-import sqlite3
-import tempfile
-from pathlib import Path
 
 from umwelt.errors import PolicyDenied
 from umwelt.policy.engine import PolicyEngine

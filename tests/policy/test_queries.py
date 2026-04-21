@@ -1,5 +1,4 @@
 # tests/policy/test_queries.py
-import pytest
 
 from umwelt.policy.queries import resolve_entity, resolve_all_entities, trace_entity, select_entities
 

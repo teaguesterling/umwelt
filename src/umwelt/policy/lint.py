@@ -89,7 +89,10 @@ def _detect_shadowed_rule(con: sqlite3.Connection) -> list[LintWarning]:
         warnings.append(LintWarning(
             smell="shadowed_rule",
             severity="info",
-            description=f"Rule at {src_file}:{src_line} never wins for properties: {', '.join(sorted(props))}",
+            description=(
+                f"Rule at {src_file}:{src_line} never wins"
+                f" for properties: {', '.join(sorted(props))}"
+            ),
             entities=(),
             property=None,
         ))
@@ -124,7 +127,10 @@ def _detect_conflicting_intent(con: sqlite3.Connection) -> list[LintWarning]:
         warnings.append(LintWarning(
             smell="conflicting_intent",
             severity="warning",
-            description=f"{entity_name} '{prop_name}': '{val1}' vs '{val2}' at same specificity — winner decided by source order",
+            description=(
+                f"{entity_name} '{prop_name}': '{val1}' vs '{val2}'"
+                " at same specificity — winner decided by source order"
+            ),
             entities=(entity_name,),
             property=prop_name,
         ))
@@ -174,7 +180,11 @@ def _detect_specificity_escalation(con: sqlite3.Connection) -> list[LintWarning]
             warnings.append(LintWarning(
                 smell="specificity_escalation",
                 severity="warning",
-                description=f"{entity_name} '{prop_name}' has {len(unique_specs)} specificity levels — possible escalation war",
+                description=(
+                    f"{entity_name} '{prop_name}' has"
+                    f" {len(unique_specs)} specificity levels"
+                    " — possible escalation war"
+                ),
                 entities=(entity_name,),
                 property=prop_name,
             ))

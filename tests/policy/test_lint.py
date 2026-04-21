@@ -7,7 +7,6 @@ import pytest
 from umwelt.compilers.sql.dialects import SQLiteDialect
 from umwelt.compilers.sql.resolution import create_resolution_views
 from umwelt.compilers.sql.schema import create_schema
-from umwelt.policy.engine import LintWarning
 from umwelt.policy.lint import run_lint
 
 
