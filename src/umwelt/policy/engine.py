@@ -355,6 +355,73 @@ class PolicyEngine:
         con.backup(target)
         target.close()
 
+    def to_files(
+        self,
+        *,
+        world: str | Path,
+        stylesheet: str | Path,
+    ) -> None:
+        import json
+
+        import yaml
+
+        con = self._ensure_compiled()
+
+        # Export entities to world YAML
+        rows = con.execute(
+            "SELECT entity_id, type_name, classes, attributes FROM entities ORDER BY type_name, entity_id"
+        ).fetchall()
+        entities_out = []
+        for entity_id, type_name, classes_json, attrs_json in rows:
+            entry: dict[str, Any] = {"type": type_name, "id": entity_id}
+            classes = json.loads(classes_json) if classes_json else []
+            if classes:
+                entry["classes"] = classes
+            attrs = json.loads(attrs_json) if attrs_json else {}
+            if attrs:
+                entry["attributes"] = attrs
+            entities_out.append(entry)
+
+        world_path = Path(world)
+        world_path.write_text(yaml.dump({"entities": entities_out}, default_flow_style=False, sort_keys=False))
+
+        # Export stylesheet: copy original if tracked, otherwise emit a comment
+        stylesheet_path = Path(stylesheet)
+        source_stylesheet: str | None = None
+        try:
+            row = con.execute(
+                "SELECT value FROM compilation_meta WHERE key = 'source_stylesheet'"
+            ).fetchone()
+            if row:
+                source_stylesheet = row[0]
+        except Exception:
+            pass
+
+        if source_stylesheet and Path(source_stylesheet).exists():
+            stylesheet_path.write_bytes(Path(source_stylesheet).read_bytes())
+        else:
+            # Best-effort: emit each distinct (property_name, property_value) combination
+            # grouped by source_file and rule_index as a comment block.
+            rule_rows = con.execute(
+                "SELECT property_name, property_value, source_file, rule_index "
+                "FROM cascade_candidates ORDER BY source_file, rule_index, property_name"
+            ).fetchall()
+            by_rule: dict[tuple[str, int], list[tuple[str, str]]] = {}
+            for prop_name, prop_value, src_file, rule_idx in rule_rows:
+                key = (src_file or "", rule_idx)
+                by_rule.setdefault(key, []).append((prop_name, prop_value))
+
+            lines = ["/* exported from compiled policy */"]
+            for (src_file, rule_idx), props in by_rule.items():
+                if src_file:
+                    lines.append(f"/* rule {rule_idx} from {src_file} */")
+                lines.append("* {")
+                for name, value in props:
+                    lines.append(f"  {name}: {value};")
+                lines.append("}")
+                lines.append("")
+            stylesheet_path.write_text("\n".join(lines))
+
     def execute(self, sql: str, params: tuple = ()) -> list[tuple]:
         con = self._ensure_compiled()
         return con.execute(sql, params).fetchall()
