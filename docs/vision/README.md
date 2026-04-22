@@ -125,7 +125,14 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-**v0.5.2 shipped.** VSM-aligned taxa (principal, audit, operation, coordination, control, intelligence), `use[of=...]` action-axis permission primitive, cross-axis cascade specificity, mode entity with class selectors, `tool.visible` property, `@audit { ... }` at-rule. Evaluation framework with ~35 falsifiable claims. DuckDB compile target (`umwelt compile --target duckdb`) via [ducklog](https://github.com/teaguesterling/ducklog). Kibitzer consumes ducklog policy databases. 562 tests. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
+**v0.6 in progress.** Building on v0.5.2 (VSM-aligned taxa, `use[of=...]`, cross-axis cascade, DuckDB compile target). Two new subsystems landed:
+
+- **World State Layer** (`umwelt.world`): YAML-based world file parser with shorthand expansion, vocabulary validation, and three-level materialization (summary/outline/full). `umwelt materialize` CLI command. PyYAML dependency.
+- **PolicyEngine** (`umwelt.policy`): Consumer-facing Python API wrapping a compiled SQLite database. Three constructors (`from_files`, `from_db`, programmatic builder). Four query modes: resolve (cascade resolution), trace (explain why), lint (smell detection), select (entity filtering). COW `extend()` for immutable fork-and-specialize. World file entities populate the same SQL schema as matchers. Typed projection views (tools, modes, etc.) embedded in compiled databases. 70 new tests.
+
+PolicyEngine replaces the separate ducklog package for consumers like Kibitzer and Lackpy — they query resolved policy via `engine.resolve()` instead of raw SQL. See [`docs/superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) for the full design spec.
+
+632+ tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
 
 ## Document map
 
@@ -144,6 +151,7 @@ privileged; all are regular consumers of the common-language contract.
 | [`notes/vsm-alignment.md`](./notes/vsm-alignment.md) | Beer's VSM as the organizing principle for umwelt's taxa. |
 | [`notes/logic-semantics.md`](./notes/logic-semantics.md) | umwelt views as Datalog programs. Landscape: OPA, Cedar, Polar, Binder. What's novel. |
 | [`notes/v05-retrospective.md`](./notes/v05-retrospective.md) | Honest assessment: what emerged, what's right, what's missing. |
+| [`../superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) | **PolicyEngine design spec.** Knowledge query API, SQL compiler extensions, world file population, projections, lint, observability. |
 
 Future documents (not yet written):
 
@@ -168,8 +176,8 @@ umwelt is one piece of a larger specified-band regulation tool suite. Each piece
 
 - **[Ma of Multi-Agent Systems](https://judgementalmonad.com/blog/ma/00-intro)** — the theoretical framework. Specified band, grade lattice, four actors, layered regulation, configuration ratchet. umwelt is a concrete instantiation of the policy layer of this framework.
 - **[Ratchet Fuel](https://judgementalmonad.com/blog/fuel/)** — the practitioner companion. Failures as product roadmap, the two-stage turn, sandbox specs as type signatures. umwelt's ratchet utility implements the crystallization stage for multi-dimension views.
-- **[ducklog](https://github.com/teaguesterling/ducklog)** — the relational backend. Compiles umwelt views to DuckDB policy databases. Consumers query resolved policy with plain SQL. Includes the selector-to-SQL compiler, comparison-aware cascade resolution, provider views (filesystem, tools, modes), and consumer modules for kibitzer and lackpy. `umwelt compile --target duckdb` uses ducklog.
-- **[kibitzer](https://github.com/teaguesterling/kibitzer)** — observation and coaching at the semantic altitude. Reads mode definitions and tool surfaces from ducklog policy databases (optional) or its own TOML config. First real consumer of the umwelt→ducklog pipeline.
+- **[ducklog](https://github.com/teaguesterling/ducklog)** — the original relational backend (being replaced by `umwelt.policy`). Compiled views to DuckDB policy databases. The selector-to-SQL compiler and cascade resolution have been absorbed into `umwelt.compilers.sql`; the consumer-facing query layer is now `umwelt.policy.PolicyEngine`. `umwelt compile --target duckdb` still works for the DuckDB dialect. ducklog remains for backwards compatibility but new consumers should use PolicyEngine directly.
+- **[kibitzer](https://github.com/teaguesterling/kibitzer)** — observation and coaching at the semantic altitude. Migrating from `ducklog.consumers.kibitzer` to `umwelt.policy.PolicyEngine` for mode definitions and tool surfaces.
 - **[lackpy](https://github.com/teaguesterling/lackpy)** — language-altitude sandbox. Primary umwelt consumer for delegate orchestration. Consumes the `compilers/lackpy-namespace` compiler or ducklog's `lackpy_tool_config` view.
 - **[blq](https://github.com/teaguesterling/lq)** — build log query. Captures observations (resource usage, command traces, strace output) that the ratchet utility consumes. DuckDB-native — shares the database substrate with ducklog.
 - **[ratchet-detect](https://github.com/teaguesterling/judgementalmonad.com/blob/main/tools/ratchet-detect/)** — observation tool for Claude Code conversation logs. Another observation source for the ratchet utility.
