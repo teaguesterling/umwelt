@@ -81,14 +81,18 @@ def trace_entity(
     entity_pk = entity_row[0]
 
     winner_row = con.execute(
-        "SELECT property_value FROM resolved_properties "
+        "SELECT property_value, specificity, rule_index "
+        "FROM resolved_properties "
         "WHERE entity_id = ? AND property_name = ?",
         (entity_pk, property),
     ).fetchone()
     winning_value = winner_row[0] if winner_row else None
+    winning_spec = winner_row[1] if winner_row else None
+    winning_rule_idx = winner_row[2] if winner_row else None
 
     rows = con.execute(
-        "SELECT property_value, specificity, rule_index, source_file, source_line "
+        "SELECT property_value, specificity, rule_index, "
+        "source_file, source_line "
         "FROM cascade_candidates "
         "WHERE entity_id = ? AND property_name = ? "
         "ORDER BY specificity DESC, rule_index DESC",
@@ -98,7 +102,11 @@ def trace_entity(
     candidates = []
     winner_marked = False
     for value, spec, rule_idx, src_file, src_line in rows:
-        is_winner = (value == winning_value and not winner_marked)
+        is_winner = (
+            not winner_marked
+            and spec == winning_spec
+            and rule_idx == winning_rule_idx
+        )
         if is_winner:
             winner_marked = True
         candidates.append(Candidate(

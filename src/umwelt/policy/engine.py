@@ -68,7 +68,7 @@ class PolicyEngine:
         try:
             _load_default_vocabulary()
         except Exception:
-            pass
+            logger.debug("vocabulary registration skipped", exc_info=True)
 
         world_file = load_world(world_path)
         view = parse(stylesheet_path)
@@ -82,7 +82,7 @@ class PolicyEngine:
         try:
             create_projection_views(con)
         except Exception:
-            pass
+            logger.debug("projection views skipped", exc_info=True)
         try:
             create_compilation_meta(
                 con,
@@ -90,7 +90,7 @@ class PolicyEngine:
                 source_stylesheet=str(stylesheet_path),
             )
         except Exception:
-            pass
+            logger.debug("compilation meta skipped", exc_info=True)
 
         engine = cls.__new__(cls)
         engine._con = con
@@ -147,7 +147,7 @@ class PolicyEngine:
         try:
             _load_default_vocabulary()
         except Exception:
-            pass
+            logger.debug("vocabulary registration skipped", exc_info=True)
 
         dialect = SQLiteDialect()
         con = self._con or sqlite3.connect(":memory:")
@@ -177,7 +177,7 @@ class PolicyEngine:
         try:
             create_projection_views(con)
         except Exception:
-            pass
+            logger.debug("projection views skipped", exc_info=True)
 
         self._con = con
         self._compiled = True
@@ -306,7 +306,7 @@ class PolicyEngine:
         try:
             _load_default_vocabulary()
         except Exception:
-            pass
+            logger.debug("vocabulary registration skipped", exc_info=True)
 
         con = self._con
         dialect = SQLiteDialect()
@@ -326,39 +326,37 @@ class PolicyEngine:
             populate_from_world(con, wf)
             self._pending_entities = []
 
-        # Drop and recreate resolution views before adding new rules
         _resolution_views = (
             "resolved_properties", "_resolved_exact",
             "_resolved_cap", "_resolved_pattern",
         )
         for view_name in _resolution_views:
-            con.execute(f"DROP VIEW IF EXISTS {view_name}")
+            con.execute(f'DROP VIEW IF EXISTS "{view_name}"')
 
+        had_stylesheets = bool(self._pending_stylesheets)
         for css_text in self._pending_stylesheets:
             view = parse_css(css_text, validate=False)
             compile_view(con, view, dialect)
         self._pending_stylesheets = []
 
-        if not self._pending_stylesheets:
+        if not had_stylesheets:
             try:
                 con.execute("SELECT 1 FROM resolved_properties LIMIT 1")
             except sqlite3.OperationalError:
                 create_resolution_views(con, dialect)
 
-        # Recreate projection views
         for view_name in ("resolved_entities",):
-            con.execute(f"DROP VIEW IF EXISTS {view_name}")
-        # Also drop any typed views that might exist
+            con.execute(f'DROP VIEW IF EXISTS "{view_name}"')
         existing_views = con.execute(
             "SELECT name FROM sqlite_master WHERE type='view' AND name NOT LIKE '_%'"
         ).fetchall()
         for (vname,) in existing_views:
             if vname != "resolved_properties":
-                con.execute(f"DROP VIEW IF EXISTS \"{vname}\"")
+                con.execute(f'DROP VIEW IF EXISTS "{vname}"')
         try:
             create_projection_views(con)
         except Exception:
-            pass
+            logger.debug("projection views skipped", exc_info=True)
 
         self._compiled = True
 

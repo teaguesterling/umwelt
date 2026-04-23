@@ -88,11 +88,11 @@ LEFT JOIN resolved_properties rp ON e.id = rp.entity_id
 WHERE e.type_name = '{safe_type}'
 GROUP BY e.id, e.entity_id, e.classes, e.attributes;
 """
-    con.executescript(ddl)
+    con.execute(ddl)
 
 
 def _create_resolved_entities_view(con: sqlite3.Connection) -> None:
-    con.executescript("""
+    con.execute("""
 CREATE VIEW IF NOT EXISTS resolved_entities AS
 SELECT e.id, e.taxon, e.type_name, e.entity_id, e.classes, e.attributes,
     json_group_object(rp.property_name, rp.property_value) AS properties

@@ -1,5 +1,7 @@
 import pytest
-from umwelt.errors import PolicyDenied, PolicyError, PolicyCompilationError, UmweltError
+
+from umwelt.errors import PolicyCompilationError, PolicyDenied, PolicyError, UmweltError
+from umwelt.policy.engine import PolicyEngine
 
 
 class TestErrorHierarchy:
@@ -41,7 +43,7 @@ class TestDataModels:
         assert w.severity == "warning"
 
     def test_trace_result_construction(self):
-        from umwelt.policy import TraceResult, Candidate
+        from umwelt.policy import Candidate, TraceResult
         c = Candidate(
             value="3",
             specificity="00001,00000,00001",
@@ -71,11 +73,6 @@ class TestDataModels:
         c = Candidate(value="3", specificity="x", rule_index=0, source_file="", source_line=0, won=True)
         with pytest.raises(AttributeError):
             c.value = "5"
-
-
-
-from umwelt.errors import PolicyDenied
-from umwelt.policy.engine import PolicyEngine
 
 
 @pytest.fixture

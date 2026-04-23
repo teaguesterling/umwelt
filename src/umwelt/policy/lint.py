@@ -50,7 +50,7 @@ def _detect_narrow_win(con: sqlite3.Connection) -> list[LintWarning]:
         runner_spec = _parse_specificity(candidates[1][3])
         if winner_spec is None or runner_spec is None:
             continue
-        diff = sum(w - r for w, r in zip(winner_spec, runner_spec))
+        diff = sum(w - r for w, r in zip(winner_spec, runner_spec, strict=False))
         if 0 < diff <= 1:
             entity_name = _entity_name(con, entity_id)
             warnings.append(LintWarning(
@@ -81,7 +81,7 @@ def _detect_shadowed_rule(con: sqlite3.Connection) -> list[LintWarning]:
     """).fetchall()
 
     shadowed_rules: dict[tuple[str, int], set[str]] = {}
-    for src_file, src_line, prop_name, entity_id in rows:
+    for src_file, src_line, prop_name, _entity_id in rows:
         key = (src_file, src_line)
         shadowed_rules.setdefault(key, set()).add(prop_name)
 
@@ -118,7 +118,7 @@ def _detect_conflicting_intent(con: sqlite3.Connection) -> list[LintWarning]:
     """).fetchall()
 
     seen: set[tuple[int, str]] = set()
-    for entity_id, prop_name, val1, val2, spec in rows:
+    for entity_id, prop_name, val1, val2, _spec in rows:
         key = (entity_id, prop_name)
         if key in seen:
             continue
