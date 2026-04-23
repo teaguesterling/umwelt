@@ -29,6 +29,7 @@ def register_sandbox_vocabulary() -> None:
     _register_audit()             # Task 10: S3* cross-cut observer
     _register_validators()
     _register_sugar()
+    _register_world_shorthands()
 
 
 def _register_vsm_aliases() -> None:
@@ -432,3 +433,13 @@ def _register_actor() -> None:
 
     register_property(taxon="actor", entity="inferencer", name="model", value_type=str, description="Model to use for this inferencer.")
     register_property(taxon="actor", entity="inferencer", name="temperature", value_type=float, description="Sampling temperature.")
+
+
+def _register_world_shorthands() -> None:
+    from umwelt.world.shorthands import register_shorthand
+
+    register_shorthand(key="tools", entity_type="tool", form="list")
+    register_shorthand(key="modes", entity_type="mode", form="list")
+    register_shorthand(key="principal", entity_type="principal", form="scalar")
+    register_shorthand(key="inferencer", entity_type="inferencer", form="scalar")
+    register_shorthand(key="resources", entity_type="resource", form="map", attribute_key="limit")

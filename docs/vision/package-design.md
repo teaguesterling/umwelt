@@ -78,7 +78,29 @@ umwelt/                                      # repository / PyPI package root
         │
         ├── compilers/                       # compiler protocol + registry
         │   ├── __init__.py
-        │   └── protocol.py                  # Compiler protocol, registry, altitude declaration
+        │   ├── protocol.py                  # Compiler protocol, registry, altitude declaration
+        │   └── sql/                         # SQL-backed compilation pipeline
+        │       ├── __init__.py              # compile_to_db, compile_to_sql
+        │       ├── schema.py                # 6-table DDL (entities, selectors, etc.)
+        │       ├── compiler.py              # compile_selector, compile_view
+        │       ├── resolution.py            # cascade resolution views (exact/cap/pattern)
+        │       ├── dialects.py              # Dialect ABC, SQLiteDialect, DuckDBDialect
+        │       └── populate.py              # world file entity → SQL population
+        │
+        ├── world/                           # world state layer — YAML world files
+        │   ├── __init__.py                  # public API: load_world, materialize, etc.
+        │   ├── model.py                     # DeclaredEntity, WorldFile, MaterializedWorld, enums
+        │   ├── parser.py                    # YAML parsing + shorthand expansion → WorldFile
+        │   ├── shorthands.py                # ShorthandDef, register_shorthand, get_shorthand
+        │   ├── validate.py                  # vocabulary validation → appends warnings
+        │   └── materialize.py               # materialize() at 3 levels + render_yaml()
+        │
+        ├── policy/                          # consumer-facing PolicyEngine
+        │   ├── __init__.py                  # exports: PolicyEngine, Candidate, TraceResult, LintWarning
+        │   ├── engine.py                    # PolicyEngine class — constructors, queries, COW extend
+        │   ├── queries.py                   # resolve, trace, select — pure SQL query layer
+        │   ├── lint.py                      # 5 smell detectors (narrow_win, shadowed_rule, etc.)
+        │   └── projections.py               # typed projection views + compilation_meta
         │
         ├── validate.py                      # runs registered validators over a parsed View
         ├── cli.py                           # umwelt parse | inspect | compile | dry-run | ratchet | check | diff
@@ -163,6 +185,7 @@ Core umwelt (~1,600 lines) is now smaller than the original monolithic plan sugg
 
 - Python 3.10+
 - `tinycss2` — CSS-3 tokenizer. Used for view file parsing. See [`implementation-language.md`](./implementation-language.md) for the rationale.
+- `pyyaml` — YAML parser. Used for `.world.yml` file parsing in `umwelt.world`.
 
 **Runtime (optional):**
 
@@ -230,6 +253,53 @@ register_property(
 ```
 
 This is what `umwelt.sandbox` calls at import time. Third-party consumers follow the same pattern. See [`entity-model.md`](./entity-model.md) §6 for the full API reference.
+
+### PolicyEngine — consumer-facing query API
+
+```python
+from umwelt.policy import PolicyEngine
+
+# Author time: compile from source files
+engine = PolicyEngine.from_files(world="env.world.yml", stylesheet="policy.umw")
+
+# Consumer time: load a pre-compiled database
+engine = PolicyEngine.from_db("world.duckdb")
+
+# Runtime: programmatic builder
+engine = PolicyEngine()
+engine.add_entities([{"type": "tool", "id": "Read", "classes": ["safe"]}])
+engine.add_stylesheet("tool.safe { visible: true; }")
+
+# Query resolved policy
+engine.resolve(type="tool", id="Read", property="visible")     # → "true"
+engine.resolve(type="tool", id="Read")                          # → {"visible": "true"}
+engine.resolve_all(type="tool")                                 # → [{"type": "tool", "id": "Read", ...}]
+
+# Explain why a value won
+trace = engine.trace(type="tool", id="Read", property="visible")
+for c in trace.candidates:
+    print(f"  {c.value} spec={c.specificity} {'✓' if c.won else '✗'}")
+
+# Check and enforce
+engine.check(type="tool", id="Read", visible="true")           # → True
+engine.require(type="tool", id="Read", visible="true")         # raises PolicyDenied if mismatch
+
+# Detect policy smells
+warnings = engine.lint()                                        # → list[LintWarning]
+
+# COW fork — immutable extend
+child = engine.extend(
+    entities=[{"type": "tool", "id": "Bash", "classes": ["dangerous"]}],
+    stylesheet="tool.dangerous { visible: false; }",
+)
+
+# Persist
+engine.save("compiled.duckdb")
+```
+
+PolicyEngine wraps a compiled SQLite database. The three constructors cover the full lifecycle: `from_files()` for authoring, `from_db()` for consumers loading pre-compiled policy, and the programmatic builder for runtime composition. `extend()` produces a new engine via SQLite backup — the original is never mutated.
+
+See [`docs/superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) for the full design spec.
 
 ### Compiler protocol and registry
 

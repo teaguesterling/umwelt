@@ -195,6 +195,58 @@ Each cycle moves a piece of the agent's behavior from "requires judgment" to "ha
 
 This is the [configuration ratchet](https://judgementalmonad.com/blog/ma/the-configuration-ratchet) from the Ma framework, applied to policy specification. The ratchet utility ships in v0.3.
 
+## World files: declaring the DOM
+
+The entity tree above can be declared in a `.world.yml` file — a YAML document that lists what exists in the agent's world:
+
+```yaml
+# env.world.yml
+tools: [Read, Edit, Bash]
+modes: [implement]
+principal: Teague
+
+entities:
+  - type: tool
+    id: Bash
+    classes: [dangerous]
+    attributes:
+      description: "Execute shell commands"
+
+projections:
+  - type: dir
+    id: node_modules
+    attributes:
+      path: "node_modules/"
+```
+
+Shorthand keys (`tools:`, `modes:`, `principal:`) expand via a vocabulary-driven registry — `tools: [Read, Edit]` becomes two `DeclaredEntity(type="tool", ...)` instances. Explicit `entities:` entries override shorthands on `(type, id)` collision.
+
+World files are parsed by `umwelt.world.load_world()` and can be materialized at three detail levels (summary, outline, full) via `umwelt materialize`.
+
+## PolicyEngine: querying resolved policy
+
+The **PolicyEngine** is the consumer-facing API. It compiles a world file + stylesheet into an in-memory SQLite database, resolves cascade, and answers queries:
+
+```python
+from umwelt.policy import PolicyEngine
+
+engine = PolicyEngine.from_files(world="env.world.yml", stylesheet="policy.umw")
+
+# What's the resolved value?
+engine.resolve(type="tool", id="Bash", property="visible")  # → "false"
+
+# Why did that value win?
+trace = engine.trace(type="tool", id="Bash", property="visible")
+
+# Are there policy smells?
+warnings = engine.lint()  # narrow_win, shadowed_rule, conflicting_intent, ...
+
+# Enforce a constraint
+engine.require(type="tool", id="Bash", visible="false")  # raises PolicyDenied on mismatch
+```
+
+Consumers like Kibitzer and Lackpy use PolicyEngine instead of raw SQL — umwelt declares, consumers enforce.
+
 ## Where to go from here
 
 - **[Vision: Policy Layer](../vision/policy-layer.md)** — the full theoretical framing: why umwelt exists, how it fits the specified-band regulation strategy, the three-layer model.

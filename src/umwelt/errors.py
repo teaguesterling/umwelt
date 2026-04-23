@@ -40,3 +40,38 @@ class ViewValidationError(ViewError):
 
 class RegistryError(UmweltError):
     """Raised on plugin-registry collisions or lookup failures."""
+
+
+class WorldError(UmweltError):
+    """Base class for world file errors."""
+
+
+class WorldParseError(WorldError):
+    """Raised when a .world.yml file has structural problems."""
+
+
+class PolicyError(UmweltError):
+    """Base class for policy engine errors."""
+
+
+class PolicyDenied(PolicyError):
+    """Raised when a require() check fails."""
+
+    def __init__(
+        self,
+        entity: str,
+        property: str,
+        expected: str,
+        actual: str | None,
+    ) -> None:
+        self.entity = entity
+        self.property = property
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            f"policy denied: {entity} {property}={actual!r} (expected {expected!r})"
+        )
+
+
+class PolicyCompilationError(PolicyError):
+    """Raised when compilation of policy sources fails."""

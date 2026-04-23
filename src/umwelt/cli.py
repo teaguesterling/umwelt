@@ -227,6 +227,36 @@ def _cmd_compile_sql(args: argparse.Namespace, view) -> int:
     return 0
 
 
+def _cmd_materialize(args: argparse.Namespace) -> int:
+    _load_default_vocabulary()
+    from umwelt.errors import WorldParseError
+    from umwelt.world.materialize import materialize, render_yaml
+    from umwelt.world.model import DetailLevel
+    from umwelt.world.parser import load_world
+    from umwelt.world.validate import validate_world
+
+    try:
+        world = load_world(Path(args.file))
+    except FileNotFoundError as exc:
+        print(f"error: No such file: {exc.filename}", file=sys.stderr)
+        return 2
+    except WorldParseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    world = validate_world(world)
+    level = DetailLevel(args.level)
+    result = materialize(world, level=level)
+    output = render_yaml(result)
+
+    if args.output:
+        Path(args.output).write_text(output)
+        print(f"Materialized to {args.output}")
+    else:
+        print(output, end="")
+    return 0
+
+
 def _cmd_diff(args: argparse.Namespace) -> int:
     _load_default_vocabulary()
     try:
@@ -378,6 +408,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="database connection string or file path (executes SQL)",
     )
     p_compile.set_defaults(func=_cmd_compile)
+
+    p_mat = subparsers.add_parser("materialize", help="materialize a .world.yml file")
+    p_mat.add_argument("file", help="path to a .world.yml file")
+    p_mat.add_argument("--level", choices=["summary", "outline", "full"], default="full",
+                       help="detail level (default: full)")
+    p_mat.add_argument("-o", "--output", default=None, help="output file path")
+    p_mat.set_defaults(func=_cmd_materialize)
 
     p_diff = subparsers.add_parser(
         "diff", help="compare two view files and show rule-level differences"
