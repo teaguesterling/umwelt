@@ -329,6 +329,90 @@ register_property(
 
 Now `secret[sensitivity="critical"] { visible: false; audit: true; }` works in any view.
 
+## The matcher protocol
+
+Most consumers query the compiled database through the PolicyEngine and never need a matcher. But if your plugin needs to evaluate selectors against a live world (not a pre-compiled snapshot), you implement the `MatcherProtocol`:
+
+```python
+from umwelt.registry.matchers import MatcherProtocol, register_matcher
+
+class FilesystemMatcher:
+    """Evaluate selectors against actual filesystem state."""
+
+    def __init__(self, root: str):
+        self.root = root
+
+    def match_type(self, type_name: str, context=None) -> list:
+        """Return all entities of this type in your world."""
+        if type_name == "dir":
+            return [p for p in Path(self.root).iterdir() if p.is_dir()]
+        if type_name == "file":
+            return [p for p in Path(self.root).rglob("*") if p.is_file()]
+        return []
+
+    def children(self, parent, child_type: str) -> list:
+        """Return child entities of `parent` matching `child_type`."""
+        if child_type == "file":
+            return [p for p in parent.iterdir() if p.is_file()]
+        if child_type == "dir":
+            return [p for p in parent.iterdir() if p.is_dir()]
+        return []
+
+    def condition_met(self, selector, context=None) -> bool:
+        """Evaluate a cross-taxon context qualifier."""
+        return True
+
+    def get_attribute(self, entity, name: str):
+        """Return an attribute value on an entity."""
+        if name == "path":
+            return str(entity)
+        if name == "name":
+            return entity.name
+        return None
+
+    def get_id(self, entity) -> str | None:
+        """Return the entity's #id for selector matching."""
+        return entity.name
+```
+
+The five methods:
+
+| Method | When it's called | What it returns |
+|---|---|---|
+| `match_type(type_name)` | Type selector (`file`, `dir`) | All entities of that type |
+| `children(parent, child_type)` | Descendant selector (`dir file`) | Children of `parent` matching `child_type` |
+| `condition_met(selector)` | Cross-taxon qualifier | Whether the context condition holds |
+| `get_attribute(entity, name)` | Attribute selector (`[path$=".py"]`) | The attribute value, or None |
+| `get_id(entity)` | ID selector (`#auth.py`) | The entity's identity string |
+
+Register it for a taxon:
+
+```python
+register_matcher(taxon="world", matcher=FilesystemMatcher("/workspace"))
+```
+
+The selector engine calls your matcher methods but never interprets the entity handles — they're opaque to the core. A filesystem matcher returns `Path` objects; an in-memory test matcher returns dicts; a database-backed matcher returns row IDs. The core doesn't care.
+
+**When you don't need a matcher:** If your entities are declared in world files and compiled via `PolicyEngine.from_files()`, the compilation pipeline handles selector matching internally. You only need a custom matcher for live evaluation against runtime state.
+
+## Desugaring and stability
+
+umwelt provides `@`-rule syntactic sugar that desugars into standard selectors and declarations:
+
+```css
+/* Sugar */
+@tools Read, Edit, Bash { visible: true; }
+
+/* Desugars to */
+tool#Read { visible: true; }
+tool#Edit { visible: true; }
+tool#Bash { visible: true; }
+```
+
+This desugaring implicitly commits to specific entity type names and property names. `@tools` assumes a `tool` entity type exists; `visible` assumes the property is registered. If you're building on the sandbox vocabulary, these names are stable. If you're extending with your own vocabulary, be aware that your `@`-rules create dependencies on your entity and property names.
+
+The desugaring happens at parse time — the compiled database never sees `@`-rules, only the expanded selectors. This means `trace()` shows the desugared form, which can be surprising if you're debugging a stylesheet that uses sugar heavily.
+
 ## Registry isolation in tests
 
 The vocabulary registry is global by default. In tests, use `registry_scope()` to isolate:

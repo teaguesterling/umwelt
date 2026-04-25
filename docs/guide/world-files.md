@@ -145,6 +145,80 @@ projections:
 
 Projections are stored separately from entities — they represent what the environment *will* provide, not what the world file *declares*. In the compiled database, projections appear in the entities table with `provenance: projected`.
 
+## Tools vs executables
+
+A `tool` is a first-class capability provided to the inferencer — an MCP tool like Read, Edit, or Bash. An `exec` is an executable binary that exists in the environment — `bash`, `python3`, `git`. These are independent concepts: `tool#Bash` describes a capability the agent can invoke, but says nothing about how it's implemented. It might call `/bin/bash`, it might be a Python reimplementation, it might delegate to a WASM sandbox. The exec entities describe what binaries the environment provides, regardless of which tools use them.
+
+```yaml
+entities:
+  # Tools — what the inferencer can call
+  - type: tool
+    id: Bash
+    classes: [dangerous]
+
+  # Executables — what runs in the environment
+  - type: exec
+    id: bash
+    attributes:
+      path: /bin/bash
+  - type: exec
+    id: git
+    attributes:
+      path: /usr/bin/git
+  - type: exec
+    id: python3
+    attributes:
+      path: /usr/bin/python3
+```
+
+These are independent entity types in different taxa — `tool` lives in `capability`, `exec` lives in `world`. They don't need to reference each other. A consumer like nsjail queries exec policy to build its sandbox configuration; a consumer like Kibitzer queries tool policy to decide what to show the agent. Each consumer reads the slice of policy it cares about.
+
+```css
+/* Tool-level: what the agent sees */
+tool#Bash { allow: true; max-level: 3; }
+
+/* Executable-level: what the sandbox restricts */
+exec#bash    { path: "/bin/bash"; }
+exec#git     { path: "/usr/bin/git"; }
+exec#python3 { path: "/usr/bin/python3"; search-path: "/usr/bin:/usr/local/bin"; }
+```
+
+The relationship between `tool#Bash` and the executables it invokes is a consumer concern — umwelt doesn't model it. The tool entity describes what the inferencer can call; the exec entities describe what binaries exist in the environment. Different consumers enforce different parts of this policy independently.
+
+## Directories and files
+
+The world taxon includes `dir` and `file` entities for filesystem structure:
+
+```yaml
+entities:
+  - type: dir
+    id: src
+    attributes:
+      path: "src/"
+      name: "src"
+  - type: dir
+    id: tests
+    attributes:
+      path: "tests/"
+      name: "tests"
+  - type: file
+    id: auth.py
+    attributes:
+      path: "src/auth/auth.py"
+      name: "auth.py"
+      language: "python"
+```
+
+`file` is a child of `dir` in the world hierarchy, so descendant selectors work:
+
+```css
+dir[name="src"] file { editable: true; }       /* files under src/ */
+dir[name="tests"] file { editable: false; }     /* tests are read-only */
+file[path$=".py"] { visible: true; }            /* all Python files visible */
+```
+
+In practice, file and directory entities are often populated by projections or filesystem matchers rather than declared by hand in the world file.
+
 ## Combining everything
 
 A realistic world file for a code editing session:
@@ -174,6 +248,16 @@ entities:
     classes: [dangerous]
     attributes:
       description: "Overwrite entire files"
+
+  - type: exec
+    id: bash
+    attributes:
+      path: /bin/bash
+
+  - type: exec
+    id: git
+    attributes:
+      path: /usr/bin/git
 
 projections:
   - type: dir
