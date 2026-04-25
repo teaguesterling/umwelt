@@ -17,6 +17,9 @@ def test_full_pipeline(tmp_path):
         "tools: [Read, Edit, Bash]\n"
         "modes: [implement]\n"
         "principal: Teague\n"
+        "resources:\n"
+        "  memory: 1GB\n"
+        "  wall-time: 10m\n"
         "entities:\n"
         "  - type: tool\n"
         "    id: Bash\n"
@@ -39,26 +42,32 @@ def test_full_pipeline(tmp_path):
         assert len(bash_entities) == 1
         assert bash_entities[0].classes == ("dangerous",)
 
+        # Resource block should be one entity with attributes
+        resource_entities = [e for e in world.entities if e.type == "resource"]
+        assert len(resource_entities) == 1
+        assert resource_entities[0].attributes["memory"] == "1GB"
+        assert resource_entities[0].attributes["wall-time"] == "10m"
+
         # Full materialization
         mw = materialize(world, DetailLevel.FULL)
-        assert mw.meta.entity_count == 5  # 3 tools + 1 mode + 1 principal
+        assert mw.meta.entity_count == 6  # 3 tools + 1 mode + 1 principal + 1 resource
         assert len(mw.projections) == 1
         assert mw.meta.detail_level == "full"
 
         # Outline strips attributes
         mw_outline = materialize(world, DetailLevel.OUTLINE)
-        assert len(mw_outline.entities) == 5
+        assert len(mw_outline.entities) == 6
         for e in mw_outline.entities:
             assert e.attributes == {}
 
         # Summary has counts only
         mw_summary = materialize(world, DetailLevel.SUMMARY)
         assert len(mw_summary.entities) == 0
-        assert mw_summary.meta.entity_count == 5
+        assert mw_summary.meta.entity_count == 6
         assert mw_summary.meta.type_counts["tool"] == 3
 
         # YAML round-trip
         text = render_yaml(mw)
         parsed = yaml.safe_load(text)
-        assert parsed["meta"]["entity_count"] == 5
-        assert len(parsed["entities"]) == 5
+        assert parsed["meta"]["entity_count"] == 6
+        assert len(parsed["entities"]) == 6

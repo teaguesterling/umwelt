@@ -92,13 +92,16 @@ class TestShorthandExpansion:
         assert wf.entities[0].type == "principal"
         assert wf.entities[0].id == "Teague"
 
-    def test_map_shorthand(self, tmp_path, toy_world_vocab):
+    def test_block_shorthand(self, tmp_path, toy_world_vocab):
         p = tmp_path / "t.world.yml"
         p.write_text("resources:\n  memory: 512MB\n  wall-time: 5m\n")
         wf = load_world(p)
-        assert len(wf.entities) == 2
-        mem = next(e for e in wf.entities if e.id == "memory")
-        assert mem.attributes["limit"] == "512MB"
+        assert len(wf.entities) == 1
+        res = wf.entities[0]
+        assert res.type == "resource"
+        assert res.id == "resource"
+        assert res.attributes["memory"] == "512MB"
+        assert res.attributes["wall-time"] == "5m"
 
     def test_explicit_overrides_shorthand(self, tmp_path, toy_world_vocab):
         p = tmp_path / "t.world.yml"

@@ -19,7 +19,7 @@ class ShorthandDef:
 
     key: str
     entity_type: str
-    form: Literal["list", "scalar", "map"]
+    form: Literal["list", "scalar", "map", "block"]
     attribute_key: str | None = None
 
 
@@ -27,7 +27,7 @@ def register_shorthand(
     *,
     key: str,
     entity_type: str,
-    form: Literal["list", "scalar", "map"],
+    form: Literal["list", "scalar", "map", "block"],
     attribute_key: str | None = None,
 ) -> None:
     """Register a shorthand key in the active registry scope."""
