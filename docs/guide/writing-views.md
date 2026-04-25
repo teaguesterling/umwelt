@@ -112,11 +112,13 @@ After the agent modifies any file, these commands run in order. If one fails, th
 ## Resource limits
 
 ```css
-resource[kind="memory"]    { limit: 512MB; }
-resource[kind="wall-time"] { limit: 5m; }
-resource[kind="cpu-time"]  { limit: 3m; }
-resource[kind="max-fds"]   { limit: 128; }
-resource[kind="tmpfs"]     { limit: 64MB; }
+resource { memory: 512MB; wall-time: 5m; cpu: 3; max-fds: 128; }
+```
+
+Each limit is a property on a single `resource` entity — the cascade resolves them independently. Override specific limits per mode or environment:
+
+```css
+mode#implement resource { memory: 1GB; wall-time: 30m; }
 ```
 
 These compile to nsjail rlimits, bwrap wrappers (prlimit/timeout), or equivalent mechanisms on other targets. Missing limits mean "tool default."
@@ -156,13 +158,12 @@ hook[event="after-change"] { run: "ruff check src/"; }
 /* Development: everything editable, Bash allowed */
 world#dev file { editable: true; }
 world#dev tool[name="Bash"] { allow: true; max-level: 4; }
-world#dev resource[kind="wall-time"] { limit: 30m; }
+world#dev resource { wall-time: 30m; }
 
 /* CI: read-only, tight limits */
 world#ci file { editable: false; }
 world#ci tool[name="Bash"] { allow: true; max-level: 2; }
-world#ci resource[kind="memory"] { limit: 512MB; }
-world#ci resource[kind="wall-time"] { limit: 5m; }
+world#ci resource { memory: 512MB; wall-time: 5m; }
 
 /* Exploration: read-only, no editing tools */
 world#explore tool { allow: false; }
@@ -212,7 +213,7 @@ For common patterns, umwelt supports at-rule shorthand that desugars to entity s
 | `@tools { allow: Read, Edit; deny: Bash; }` | `tool[name="Read"] { allow: true; }` `tool[name="Edit"] { allow: true; }` `tool[name="Bash"] { allow: false; }` |
 | `@after-change { test: pytest; }` | `hook[event="after-change"] { run: "pytest"; }` |
 | `@network { deny: *; }` | `network { deny: "*"; }` |
-| `@budget { memory: 512MB; }` | `resource[kind="memory"] { limit: 512MB; }` |
+| `@budget { memory: 512MB; }` | `resource { memory: 512MB; }` |
 | `@env { allow: CI; }` | `env[name="CI"] { allow: true; }` |
 
 Both forms are first-class. Mix them freely. The @ syntax is shorter for simple cases; the entity-selector form is more powerful (compound selectors, named environments, fine-grained attribute matching).
@@ -230,8 +231,7 @@ world#auth-fix {
   tool[name="Edit"]  { allow: true; }
   tool[name="Bash"]  { allow: false; }
 
-  resource[kind="memory"]    { limit: 512MB; }
-  resource[kind="wall-time"] { limit: 5m; }
+  resource { memory: 512MB; wall-time: 5m; }
   network { deny: "*"; }
 
   hook[event="after-change"] {

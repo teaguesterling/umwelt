@@ -27,8 +27,7 @@ tool[name="Bash"]  { allow: false; }
 
 network { deny: "*"; }
 
-resource[kind="memory"]   { limit: 512MB; }
-resource[kind="wall-time"]{ limit: 60s; }
+resource { memory: 512MB; wall-time: 60s; }
 
 hook[event="after-change"] {
   run: "pytest tests/test_auth.py";
@@ -226,7 +225,7 @@ tool[name="Bash"] file[path^="src/auth/"] { editable: false; }
 actor#delegate file[path^="secrets/"] { visible: false; }
           /* sub-delegate actors cannot see secrets */
 
-job[delegate="true"] resource[kind="memory"] { max-limit: 256MB; }
+job[delegate="true"] resource { max-memory: 256MB; }
           /* delegated jobs have a tighter memory cap than their parent */
 ```
 
@@ -274,7 +273,7 @@ Examples:
 
 ```
 tool          { max-level: 2; }             /* tools capped at computation level ≤ 2 */
-resource[kind="memory"] { max-limit: 512MB; }    /* memory cap at most 512MB */
+resource { max-memory: 512MB; }                  /* memory cap at most 512MB */
 tool          { only-kits: python-dev, rust-dev; }   /* only these kits allowed */
 ```
 
@@ -436,7 +435,7 @@ network                              { deny: "*"; }
 
 ### `@budget { ... }`
 
-Desugars to one `resource[kind=...] { limit: N }` rule per dimension.
+Desugars to a single `resource { ... }` rule with each dimension as a property.
 
 ```
 @budget {
@@ -451,11 +450,13 @@ Desugars to one `resource[kind=...] { limit: N }` rule per dimension.
 equivalent to:
 
 ```
-resource[kind="memory"]    { limit: 512MB; }
-resource[kind="wall-time"] { limit: 60s;   }
-resource[kind="cpu-time"]  { limit: 30s;   }
-resource[kind="max-fds"]   { limit: 128;   }
-resource[kind="tmpfs"]     { limit: 64MB;  }
+resource {
+  memory:    512MB;
+  wall-time: 60s;
+  cpu-time:  30s;
+  max-fds:   128;
+  tmpfs:     64MB;
+}
 ```
 
 ### `@env { ... }`
@@ -499,7 +500,7 @@ tool[name="Grep"]   { allow: true; }
 tool[name="Glob"]   { allow: true; }
 
 network                  { deny: "*"; }
-resource[kind="wall-time"] { limit: 60s; }
+resource                 { wall-time: 60s; }
 ```
 
 Use case: "look at the codebase and tell me where the auth logic lives." The delegate can't change anything, can't run commands, can't reach the network. It has 60 seconds.
@@ -521,8 +522,7 @@ tool[name="Bash"] { allow: false; }
 tool[name="Write"]{ allow: false; }
 
 network                    { deny: "*"; }
-resource[kind="memory"]    { limit: 512MB; }
-resource[kind="wall-time"] { limit: 5m; }
+resource                   { memory: 512MB; wall-time: 5m; }
 
 hook[event="after-change"] {
   run: "pytest tests/auth/ -x";
@@ -566,9 +566,7 @@ tool[name="Read"]     { allow: true; }
 tool[name="Bash"]     { allow: true; max-level: 2; }
 
 network                    { deny: "*"; }
-resource[kind="memory"]    { limit: 1GB; }
-resource[kind="wall-time"] { limit: 10m; }
-resource[kind="tmpfs"]     { limit: 128MB; }
+resource                   { memory: 1GB; wall-time: 10m; tmpfs: 128MB; }
 
 env[name="PYTHONPATH"]     { allow: true; }
 env[name="PYTEST_ADDOPTS"] { allow: true; }
@@ -594,8 +592,7 @@ tool[name="Bash"] {
   deny-pattern:  "rm -rf *", "curl *", "ssh *", "sudo *";
 }
 
-resource[kind="memory"]     { limit: 512MB; }
-resource[kind="wall-time"]  { limit: 5m; }
+resource { memory: 512MB; wall-time: 5m; }
 network { deny: "*"; }
 
 hook[event="after-change"] {
@@ -631,11 +628,13 @@ tool[name="Bash"]       { allow: false; }
 tool[altitude="os"]     { max-level: 4; }
 
 /* Runtime budget */
-resource[kind="memory"]     { limit: 512MB; }
-resource[kind="wall-time"]  { limit: 5m; }
-resource[kind="cpu-time"]   { limit: 3m; }
-resource[kind="max-fds"]    { limit: 128; }
-resource[kind="tmpfs"]      { limit: 64MB; }
+resource {
+  memory:    512MB;
+  wall-time: 5m;
+  cpu-time:  3m;
+  max-fds:   128;
+  tmpfs:     64MB;
+}
 
 /* Network and env */
 network { deny: "*"; }
