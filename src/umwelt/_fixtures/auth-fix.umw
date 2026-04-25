@@ -10,8 +10,7 @@ tool[name="Edit"] { allow: true; }
 tool[name="Grep"] { allow: true; }
 tool[name="Glob"] { allow: true; }
 network { deny: "*"; }
-resource[kind="memory"] { limit: 512MB; }
-resource[kind="wall-time"] { limit: 5m; }
+resource { memory: 512MB; wall-time: 5m; }
 hook[event="after-change"] {
   run: "pytest tests/auth/ -x";
   run: "ruff check src/auth/";

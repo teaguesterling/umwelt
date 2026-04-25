@@ -129,24 +129,20 @@ class NsjailCompiler:
         entity: Any,
         props: dict[str, str],
     ) -> None:
-        kind = getattr(entity, "kind", "")
-        limit = props.get("limit", "")
-        if not limit:
-            return
-        if kind == "memory":
-            cfg.rlimit_as = parse_memory_mb(limit)
-        elif kind == "wall-time":
-            cfg.time_limit = parse_time_seconds(limit)
-        elif kind == "cpu-time":
-            cfg.rlimit_cpu = parse_time_seconds(limit)
-        elif kind == "max-fds":
-            cfg.rlimit_nofile = int(limit)
-        elif kind == "tmpfs":
+        if props.get("memory"):
+            cfg.rlimit_as = parse_memory_mb(props["memory"])
+        if props.get("wall-time"):
+            cfg.time_limit = parse_time_seconds(props["wall-time"])
+        if props.get("cpu"):
+            cfg.rlimit_cpu = parse_time_seconds(props["cpu"])
+        if props.get("max-fds"):
+            cfg.rlimit_nofile = int(props["max-fds"])
+        if props.get("tmpfs"):
             cfg.mounts.append({
                 "dst": "/tmp",
                 "fstype": "tmpfs",
                 "is_bind": False,
-                "options": f"size={parse_size_for_tmpfs(limit)}",
+                "options": f"size={parse_size_for_tmpfs(props['tmpfs'])}",
             })
 
     def _compile_network(

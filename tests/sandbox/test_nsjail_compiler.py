@@ -87,7 +87,7 @@ def test_network_no_deny_does_not_emit_clone_newnet():
 
 def test_memory_limit():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
+    rv.add("world", ResourceEntity(), {"memory": "512MB"})
     output = NsjailCompiler().compile(rv)
     assert "rlimit_as: 512" in output
     assert "rlimit_as_type: SOFT" in output
@@ -95,43 +95,43 @@ def test_memory_limit():
 
 def test_wall_time_limit():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+    rv.add("world", ResourceEntity(), {"wall-time": "60s"})
     output = NsjailCompiler().compile(rv)
     assert "time_limit: 60" in output
 
 
 def test_wall_time_limit_minutes():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "5m"})
+    rv.add("world", ResourceEntity(), {"wall-time": "5m"})
     output = NsjailCompiler().compile(rv)
     assert "time_limit: 300" in output
 
 
-def test_cpu_time_limit():
+def test_cpu_limit():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="cpu-time"), {"limit": "30s"})
+    rv.add("world", ResourceEntity(), {"cpu": "30s"})
     output = NsjailCompiler().compile(rv)
     assert "rlimit_cpu: 30" in output
 
 
 def test_max_fds_limit():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="max-fds"), {"limit": "128"})
+    rv.add("world", ResourceEntity(), {"max-fds": "128"})
     output = NsjailCompiler().compile(rv)
     assert "rlimit_nofile: 128" in output
 
 
 def test_tmpfs_resource():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="tmpfs"), {"limit": "64MB"})
+    rv.add("world", ResourceEntity(), {"tmpfs": "64MB"})
     output = NsjailCompiler().compile(rv)
     assert 'fstype: "tmpfs"' in output
     assert 'options: "size=64M"' in output
 
 
-def test_resource_without_limit_is_skipped():
+def test_resource_without_limits_is_skipped():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(kind="memory"), {})
+    rv.add("world", ResourceEntity(), {})
     output = NsjailCompiler().compile(rv)
     assert "rlimit_as" not in output
 
@@ -188,9 +188,7 @@ def test_full_worked_example():
     rv.add("world", FileEntity(path="src/common", abs_path=Path("src/common"), name="common"), {"editable": "false"})
     rv.add("world", FileEntity(path="/tmp/work", abs_path=Path("/tmp/work"), name="work"), {"editable": "true"})
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
-    rv.add("world", ResourceEntity(kind="tmpfs"), {"limit": "64MB"})
+    rv.add("world", ResourceEntity(), {"memory": "512MB", "wall-time": "60s", "tmpfs": "64MB"})
     rv.add("world", EnvEntity(name="CI"), {"allow": "true"})
     # These should be silently dropped:
     rv.add("capability", ToolEntity(name="Read"), {"allow": "true"})
@@ -204,7 +202,7 @@ def test_full_worked_example():
     assert "clone_newnet: true" in output
     assert "rlimit_as: 512" in output
     # Three mounts: src/auth (rw), src/common (ro), /tmp/work (rw), plus tmpfs /tmp
-    assert output.count("mount {") == 12  # 8 system + 4 view
+    assert output.count("mount {") == 12  # 8 system + 3 files + 1 tmpfs
     assert 'envar: "CI"' in output
     # Tools and hooks NOT in output
     assert "Read" not in output

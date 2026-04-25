@@ -264,6 +264,7 @@ def _register_world() -> None:
     register_property(taxon="world", entity="resource", name="wall-time", value_type=str, restrictive_direction="min", description="Wall-clock time limit (e.g. 10m, 1h).")
     register_property(taxon="world", entity="resource", name="cpu", value_type=str, restrictive_direction="min", description="CPU core limit (e.g. 2, 0.5).")
     register_property(taxon="world", entity="resource", name="max-fds", value_type=int, restrictive_direction="min", description="Maximum open file descriptors.")
+    register_property(taxon="world", entity="resource", name="tmpfs", value_type=str, restrictive_direction="min", description="Tmpfs size for /tmp (e.g. 64MB).")
     register_property(taxon="world", entity="network", name="deny", value_type=str, restrictive_direction="superset", description="Deny pattern ('*' for all).")
     register_property(taxon="world", entity="network", name="allow", value_type=bool, restrictive_direction="false", description="Whether this endpoint is allowed.")
     register_property(taxon="world", entity="env", name="allow", value_type=bool, restrictive_direction="false", description="Whether this env var is passed through.")

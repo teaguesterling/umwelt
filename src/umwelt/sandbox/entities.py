@@ -32,9 +32,7 @@ class DirEntity:
 
 @dataclass(frozen=True)
 class ResourceEntity:
-    """A runtime resource (memory, cpu-time, wall-time, etc.)."""
-
-    kind: str
+    """A resource block declaring runtime limits (memory, wall-time, cpu, etc.)."""
 
 
 @dataclass(frozen=True)

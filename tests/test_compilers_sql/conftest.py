@@ -37,9 +37,8 @@ def populated_db(db):
         # world: dirs
         (10, "world", "dir",  "src",                None, json.dumps({"path": "src", "name": "src"}), None, 0),
         (11, "world", "dir",  "tests",              None, json.dumps({"path": "tests", "name": "tests"}), None, 0),
-        # world: resources
-        (20, "world", "resource", "memory",         None, json.dumps({"kind": "memory"}), None, 0),
-        (21, "world", "resource", "wall-time",      None, json.dumps({"kind": "wall-time"}), None, 0),
+        # world: resource (singleton block)
+        (20, "world", "resource", "resource",       None, json.dumps({"name": "resource"}), None, 0),
         # world: network
         (25, "world", "network", None,               None, json.dumps({}), None, 0),
         # world: exec
