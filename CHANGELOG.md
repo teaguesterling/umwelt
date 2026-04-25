@@ -10,17 +10,17 @@ project follows semantic versioning.
 
 ### Added
 - **`mode` entity** registered under the `control`/`state` taxon.
-  Authored as compositional class selectors: `mode.implement`,
-  `mode.implement.tdd`, etc. v0.5.2 supports mode as a cross-axis context
-  qualifier in cascade (always active at view-resolve time); runtime
-  class-filtering ("only fire if the current mode matches") is a v0.6
-  concern coordinated with kibitzer's `ChangeToolMode`.
+  Authored as ID selectors: `mode#implement`, `mode#review`, etc.
+  Classes remain for categories: `mode#implement.tdd`. v0.5.2 supports
+  mode as a cross-axis context qualifier in cascade (always active at
+  view-resolve time); runtime mode-filtering is a v0.6 concern
+  coordinated with kibitzer's `ChangeToolMode`.
 - **`tool.visible` property**. Defaults to following `allow`. Distinct
   from `tool.allow`: `allow: false` blocks invocation; `visible: false`
   hides the tool from the delegate's menu. Useful for mode-gated tool
   surfaces (see kibitzer #1).
 - **Cross-axis idioms section** in `docs/guide/entity-reference.md`
-  documenting `mode.<class> tool[name=...]` for mode-gated tool surfaces,
+  documenting `mode#<id> tool[name=...]` for mode-gated tool surfaces,
   with guidance on when to reach for `use[of=...]` instead. Three-axis
   (principal × mode × tool) example included.
 - New tests in `tests/sandbox/test_mode_tool_idiom.py` verifying

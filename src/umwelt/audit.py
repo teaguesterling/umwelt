@@ -24,15 +24,63 @@ from typing import Any
 
 from umwelt.ast import View
 from umwelt.compilers import available, get
+from umwelt.registry.properties import PropertySchema, RestrictiveDirection
 
-# Widening detection constants - properties where these value transitions
-# represent widening (loosening access)
+# Legacy fallback for properties registered before restrictive_direction existed.
 _WIDENING_TRANSITIONS: dict[str, list[tuple[str, str]]] = {
     "editable": [("false", "true")],
     "allow": [("false", "true")],
     "visible": [("false", "true")],
     "deny": [("*", "")],  # removing deny = widening
 }
+
+
+def is_widening(
+    old_value: str,
+    new_value: str,
+    *,
+    prop_schema: PropertySchema | None = None,
+    prop_name: str = "",
+) -> bool:
+    """Determine if a value transition is widening (more permissive).
+
+    Uses restrictive_direction from PropertySchema when available,
+    falls back to the legacy _WIDENING_TRANSITIONS table.
+    """
+    direction = prop_schema.restrictive_direction if prop_schema else None
+    if direction is not None:
+        return _is_widening_by_direction(old_value, new_value, direction)
+    name = prop_schema.name if prop_schema else prop_name
+    if name in _WIDENING_TRANSITIONS:
+        return any(
+            old_value == r and new_value == p
+            for r, p in _WIDENING_TRANSITIONS[name]
+        )
+    return False
+
+
+def _is_widening_by_direction(
+    old_value: str, new_value: str, direction: RestrictiveDirection
+) -> bool:
+    if direction == "false":
+        return old_value == "false" and new_value == "true"
+    if direction == "true":
+        return old_value == "true" and new_value == "false"
+    if direction == "min":
+        try:
+            return float(new_value) > float(old_value)
+        except ValueError:
+            return False
+    if direction == "max":
+        try:
+            return float(new_value) < float(old_value)
+        except ValueError:
+            return False
+    if direction == "subset":
+        return not set(new_value.split()) <= set(old_value.split())
+    if direction == "superset":
+        return set(new_value.split()) < set(old_value.split())
+    return False
 
 
 @dataclass
@@ -179,13 +227,15 @@ def _find_source_line(view: View, taxon: str, prop_name: str) -> int:
 def _detect_widening(view: View) -> dict[str, list[tuple[int, int, str]]]:
     """Walk rules in document order and detect widening transitions.
 
+    Uses restrictive_direction from PropertySchema when available,
+    falls back to the legacy _WIDENING_TRANSITIONS table.
+
     Returns a dict keyed by property name, with lists of
     (earlier_line, later_line, property_name) tuples.
     """
-    # Track the "most restrictive value seen so far" per property
-    # across all rules in document order.
     last_seen: dict[str, tuple[str, int]] = {}  # prop_name -> (value, line)
     widenings: dict[str, list[tuple[int, int, str]]] = {}
+    schema_cache: dict[str, PropertySchema | None] = {}
 
     for rule in view.rules:
         for decl in rule.declarations:
@@ -195,16 +245,33 @@ def _detect_widening(view: View) -> dict[str, list[tuple[int, int, str]]]:
 
             if prop in last_seen:
                 prev_value, prev_line = last_seen[prop]
-                if prop in _WIDENING_TRANSITIONS:
-                    for restrictive, permissive in _WIDENING_TRANSITIONS[prop]:
-                        if prev_value == restrictive and value == permissive:
-                            widenings.setdefault(prop, []).append(
-                                (prev_line, line, prop)
-                            )
+                if prop not in schema_cache:
+                    schema_cache[prop] = _lookup_property_schema(prop)
+                if is_widening(
+                    prev_value, value,
+                    prop_schema=schema_cache[prop],
+                    prop_name=prop,
+                ):
+                    widenings.setdefault(prop, []).append(
+                        (prev_line, line, prop)
+                    )
 
             last_seen[prop] = (value, line)
 
     return widenings
+
+
+def _lookup_property_schema(prop_name: str) -> PropertySchema | None:
+    """Best-effort lookup of a property schema across all registered entities."""
+    try:
+        from umwelt.registry.taxa import _current_state
+        state = _current_state()
+        for (_taxon, _entity, name), schema in state.properties.items():
+            if name == prop_name:
+                return schema
+    except Exception:
+        pass
+    return None
 
 
 def format_audit(view: View, world: str | None = None) -> str:

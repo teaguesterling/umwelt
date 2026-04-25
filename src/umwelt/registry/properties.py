@@ -16,6 +16,7 @@ from umwelt.registry.entities import get_entity
 from umwelt.registry.taxa import _current_state, resolve_taxon
 
 Comparison = Literal["exact", "<=", ">=", "in", "overlap", "pattern-in"]
+RestrictiveDirection = Literal["false", "true", "min", "max", "subset", "superset"]
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ class PropertySchema:
     entity: str
     value_type: type
     comparison: Comparison = "exact"
+    restrictive_direction: RestrictiveDirection | None = None
     value_attribute: str | None = None
     value_unit: str | None = None
     value_range: tuple[Any, Any] | None = None
@@ -42,6 +44,7 @@ def register_property(
     value_type: type,
     description: str,
     comparison: Comparison = "exact",
+    restrictive_direction: RestrictiveDirection | None = None,
     value_attribute: str | None = None,
     value_unit: str | None = None,
     value_range: tuple[Any, Any] | None = None,
@@ -62,6 +65,7 @@ def register_property(
         entity=entity,
         value_type=value_type,
         comparison=comparison,
+        restrictive_direction=restrictive_direction,
         value_attribute=value_attribute,
         value_unit=value_unit,
         value_range=value_range,

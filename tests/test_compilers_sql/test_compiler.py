@@ -4,7 +4,7 @@ Organized from atoms to molecules:
   Level 1: Type selectors (file, tool, mode)
   Level 2: ID selectors (file#README.md, tool#Bash)
   Level 3: Attribute selectors ([path="..."], [path^="..."])
-  Level 4: Class selectors (mode.implement, mode.implement.tdd)
+  Level 4: Class selectors (mode.implement, mode.implement.tdd — legacy; modes now use ID selectors)
   Levels 5-8: see Task 5
 """
 from __future__ import annotations
@@ -127,15 +127,15 @@ class TestClassSelectors:
 
 class TestCompoundSelectors:
     def test_two_axis_mode_tool(self, populated_db):
-        sql = compile_selector(parse_selector("mode.implement tool"), DIALECT)
+        sql = compile_selector(parse_selector("mode#implement tool"), DIALECT)
         assert query_ids(populated_db, sql) == {40, 41, 42, 43, 44, 45, 46}
 
     def test_two_axis_mode_tool_with_attr(self, populated_db):
-        sql = compile_selector(parse_selector('mode.implement tool[name="Bash"]'), DIALECT)
+        sql = compile_selector(parse_selector('mode#implement tool[name="Bash"]'), DIALECT)
         assert query_ids(populated_db, sql) == {42}
 
     def test_context_qualifier_nonexistent_mode_produces_nothing(self, populated_db):
-        sql = compile_selector(parse_selector("mode.deploy tool"), DIALECT)
+        sql = compile_selector(parse_selector("mode#deploy tool"), DIALECT)
         assert query_ids(populated_db, sql) == set()
 
     def test_two_axis_principal_tool(self, populated_db):
@@ -153,15 +153,15 @@ class TestCompoundSelectors:
 
 class TestThreeAxisCompounds:
     def test_principal_mode_tool(self, populated_db):
-        sql = compile_selector(parse_selector('principal#Teague mode.implement tool[name="Bash"]'), DIALECT)
+        sql = compile_selector(parse_selector('principal#Teague mode#implement tool[name="Bash"]'), DIALECT)
         assert query_ids(populated_db, sql) == {42}
 
     def test_three_axis_one_qualifier_fails(self, populated_db):
-        sql = compile_selector(parse_selector('principal#Nobody mode.implement tool[name="Bash"]'), DIALECT)
+        sql = compile_selector(parse_selector('principal#Nobody mode#implement tool[name="Bash"]'), DIALECT)
         assert query_ids(populated_db, sql) == set()
 
     def test_three_axis_different_qualifier_fails(self, populated_db):
-        sql = compile_selector(parse_selector('principal#Teague mode.deploy tool[name="Bash"]'), DIALECT)
+        sql = compile_selector(parse_selector('principal#Teague mode#deploy tool[name="Bash"]'), DIALECT)
         assert query_ids(populated_db, sql) == set()
 
 

@@ -52,12 +52,12 @@ def populated_db(db):
         (44, "capability", "tool", "Agent",          None, json.dumps({"name": "Agent", "altitude": "semantic", "level": "7"}), None, 0),
         (45, "capability", "tool", "Glob",           None, json.dumps({"name": "Glob", "altitude": "os", "level": "1"}), None, 0),
         (46, "capability", "tool", "Write",          None, json.dumps({"name": "Write", "altitude": "os", "level": "3"}), None, 0),
-        # state: modes
-        (50, "state", "mode", None, json.dumps(["implement"]),      json.dumps({"writable": "src/, lib/", "strategy": ""}), None, 0),
-        (51, "state", "mode", None, json.dumps(["test"]),           json.dumps({"writable": "tests/", "strategy": "Write tests for expected behavior, not current behavior."}), None, 0),
-        (52, "state", "mode", None, json.dumps(["explore"]),        json.dumps({"writable": "", "strategy": "Map the territory before making changes."}), None, 0),
-        (53, "state", "mode", None, json.dumps(["implement", "tdd"]), json.dumps({"writable": "src/, tests/", "strategy": ""}), None, 0),
-        (54, "state", "mode", None, json.dumps(["review"]),         json.dumps({"writable": "", "strategy": "Read everything, then verify with tests."}), None, 0),
+        # state: modes (entity_id = mode name; classes retained for class-selector tests)
+        (50, "state", "mode", "implement",     json.dumps(["implement"]),          json.dumps({"writable": "src/, lib/", "strategy": ""}), None, 0),
+        (51, "state", "mode", "test",          json.dumps(["test"]),               json.dumps({"writable": "tests/", "strategy": "Write tests for expected behavior, not current behavior."}), None, 0),
+        (52, "state", "mode", "explore",       json.dumps(["explore"]),            json.dumps({"writable": "", "strategy": "Map the territory before making changes."}), None, 0),
+        (53, "state", "mode", "implement-tdd", json.dumps(["implement", "tdd"]),   json.dumps({"writable": "src/, tests/", "strategy": ""}), None, 0),
+        (54, "state", "mode", "review",        json.dumps(["review"]),             json.dumps({"writable": "", "strategy": "Read everything, then verify with tests."}), None, 0),
         # principal
         (60, "principal", "principal", "Teague", None, json.dumps({"name": "Teague"}), None, 0),
         # audit

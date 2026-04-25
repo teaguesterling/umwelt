@@ -106,17 +106,16 @@ class BudgetEntity:
 class ModeEntity:
     """A regulation mode (S3).
 
-    Modes are compositional — a delegate can be in `mode.implement.tdd`,
-    stacking multiple class labels. The `name` holds the canonical class
-    (when authored via `mode.<name>`) and `classes` captures the full
-    class set.
+    Modes are named instances authored via ID selectors: `mode#review`,
+    `mode#implement`. Classes remain for categories: `mode#review.read-only`.
 
     In v0.5, modes are always "active" as cross-axis context qualifiers —
-    runtime mode-filtering (only fire rules whose mode class matches the
+    runtime mode-filtering (only fire rules whose mode ID matches the
     current mode) is a v0.6+ concern coordinated with kibitzer's
     `ChangeToolMode`.
     """
 
+    id: str | None = None
     name: str | None = None
     classes: tuple[str, ...] = ()
 

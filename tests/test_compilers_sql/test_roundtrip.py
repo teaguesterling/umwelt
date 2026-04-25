@@ -138,7 +138,7 @@ class TestModeGatedTools:
     def test_mode_gates_tool(self, world):
         rv = _resolve(world, '''
             tool { allow: true; }
-            mode.explore tool { allow: false; }
+            mode#explore tool { allow: false; }
         ''')
         assert rv.property("Read", "allow") == "false"
         assert rv.property("Bash", "allow") == "false"
@@ -146,8 +146,8 @@ class TestModeGatedTools:
 
     def test_mode_specific_tool_override(self, world):
         rv = _resolve(world, '''
-            mode.explore tool { allow: false; }
-            mode.explore tool[name="Read"] { allow: true; }
+            mode#explore tool { allow: false; }
+            mode#explore tool[name="Read"] { allow: true; }
         ''')
         assert rv.property("Read", "allow") == "true"
         assert rv.property("Bash", "allow") == "false"
@@ -156,7 +156,7 @@ class TestModeGatedTools:
     def test_nonexistent_mode_gates_nothing(self, world):
         rv = _resolve(world, '''
             tool { allow: true; }
-            mode.deploy tool { allow: false; }
+            mode#deploy tool { allow: false; }
         ''')
         assert rv.property("Read", "allow") == "true"
         rv.assert_a1()
@@ -165,8 +165,8 @@ class TestModeGatedTools:
 class TestCrossAxis:
     def test_three_axis_beats_two_axis(self, world):
         rv = _resolve(world, '''
-            mode.implement tool[name="Bash"] { allow: false; }
-            principal#Teague mode.implement tool[name="Bash"] { allow: true; }
+            mode#implement tool[name="Bash"] { allow: false; }
+            principal#Teague mode#implement tool[name="Bash"] { allow: true; }
         ''')
         assert rv.property("Bash", "allow") == "true"
         rv.assert_a1()
@@ -174,7 +174,7 @@ class TestCrossAxis:
     def test_two_axis_beats_one_axis(self, world):
         rv = _resolve(world, '''
             tool[name="Bash"] { allow: true; }
-            mode.implement tool[name="Bash"] { allow: false; }
+            mode#implement tool[name="Bash"] { allow: false; }
         ''')
         assert rv.property("Bash", "allow") == "false"
         rv.assert_a1()

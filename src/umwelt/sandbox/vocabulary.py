@@ -84,14 +84,18 @@ def _register_use() -> None:
     )
 
     register_property(taxon="operation", entity="use", name="editable", value_type=bool,
+                      restrictive_direction="false",
                       description="Whether this use grants edit access.")
     register_property(taxon="operation", entity="use", name="visible", value_type=bool,
+                      restrictive_direction="false",
                       description="Whether this use grants visibility.")
     register_property(taxon="operation", entity="use", name="show", value_type=str,
                       description="Projection kind: body, outline, signature.")
     register_property(taxon="operation", entity="use", name="allow", value_type=bool,
+                      restrictive_direction="false",
                       description="Whether this use is permitted.")
     register_property(taxon="operation", entity="use", name="deny", value_type=str,
+                      restrictive_direction="superset",
                       description="Deny pattern ('*' for blanket deny).")
     register_property(taxon="operation", entity="use", name="allow-pattern", value_type=list,
                       comparison="pattern-in",
@@ -152,6 +156,7 @@ def _register_audit() -> None:
     register_property(taxon="audit", entity="observation", name="source", value_type=str,
                      description="Observer source (e.g. 'kibitzer', 'ratchet-detect').")
     register_property(taxon="audit", entity="observation", name="enabled", value_type=bool,
+                     restrictive_direction="true",
                      description="Whether this observation is enabled.")
     register_property(taxon="audit", entity="manifest", name="path", value_type=str,
                      description="Path to the manifest file.")
@@ -250,18 +255,18 @@ def _register_world() -> None:
     )
 
     # Properties on world entities
-    register_property(taxon="world", entity="file", name="editable", value_type=bool, description="Whether the actor may modify this file.")
-    register_property(taxon="world", entity="file", name="visible", value_type=bool, description="Whether the actor can see this file.")
+    register_property(taxon="world", entity="file", name="editable", value_type=bool, restrictive_direction="false", description="Whether the actor may modify this file.")
+    register_property(taxon="world", entity="file", name="visible", value_type=bool, restrictive_direction="false", description="Whether the actor can see this file.")
     register_property(taxon="world", entity="file", name="show", value_type=str, description="What to show: body, outline, signature.")
-    register_property(taxon="world", entity="dir", name="editable", value_type=bool, description="Whether the actor may modify files in this dir.")
-    register_property(taxon="world", entity="dir", name="visible", value_type=bool, description="Whether the actor can see this dir.")
-    register_property(taxon="world", entity="resource", name="limit", value_type=str, description="Resource limit value with unit (e.g. 512MB, 60s).")
-    register_property(taxon="world", entity="network", name="deny", value_type=str, description="Deny pattern ('*' for all).")
-    register_property(taxon="world", entity="network", name="allow", value_type=bool, description="Whether this endpoint is allowed.")
-    register_property(taxon="world", entity="env", name="allow", value_type=bool, description="Whether this env var is passed through.")
+    register_property(taxon="world", entity="dir", name="editable", value_type=bool, restrictive_direction="false", description="Whether the actor may modify files in this dir.")
+    register_property(taxon="world", entity="dir", name="visible", value_type=bool, restrictive_direction="false", description="Whether the actor can see this dir.")
+    register_property(taxon="world", entity="resource", name="limit", value_type=str, restrictive_direction="min", description="Resource limit value with unit (e.g. 512MB, 60s).")
+    register_property(taxon="world", entity="network", name="deny", value_type=str, restrictive_direction="superset", description="Deny pattern ('*' for all).")
+    register_property(taxon="world", entity="network", name="allow", value_type=bool, restrictive_direction="false", description="Whether this endpoint is allowed.")
+    register_property(taxon="world", entity="env", name="allow", value_type=bool, restrictive_direction="false", description="Whether this env var is passed through.")
     register_property(taxon="world", entity="mount", name="size", value_type=str, description="Mount size limit.")
     register_property(taxon="world", entity="mount", name="source", value_type=str, description="Host path or URL this mount maps from.")
-    register_property(taxon="world", entity="mount", name="readonly", value_type=bool, description="Whether the mount is read-only.")
+    register_property(taxon="world", entity="mount", name="readonly", value_type=bool, restrictive_direction="true", description="Whether the mount is read-only.")
     register_property(taxon="world", entity="mount", name="type", value_type=str, description="Mount type: bind, tmpfs, overlay.")
 
     register_entity(
@@ -323,13 +328,13 @@ def _register_capability() -> None:
         category="tools",
     )
 
-    register_property(taxon="capability", entity="tool", name="allow", value_type=bool, description="Whether the tool is permitted.")
-    register_property(taxon="capability", entity="tool", name="visible", value_type=bool, description="Whether the tool is displayed to the delegate. Default follows 'allow'.")
-    register_property(taxon="capability", entity="tool", name="max-level", value_type=int, comparison="<=", value_attribute="level", value_range=(0, 8), description="Maximum computation level permitted.", category="effects_ceiling")
+    register_property(taxon="capability", entity="tool", name="allow", value_type=bool, restrictive_direction="false", description="Whether the tool is permitted.")
+    register_property(taxon="capability", entity="tool", name="visible", value_type=bool, restrictive_direction="false", description="Whether the tool is displayed to the delegate. Default follows 'allow'.")
+    register_property(taxon="capability", entity="tool", name="max-level", value_type=int, comparison="<=", restrictive_direction="min", value_attribute="level", value_range=(0, 8), description="Maximum computation level permitted.", category="effects_ceiling")
     register_property(taxon="capability", entity="tool", name="require", value_type=str, description="Requirement for using this tool (e.g. 'sandbox').")
-    register_property(taxon="capability", entity="tool", name="allow-pattern", value_type=list, comparison="pattern-in", description="Glob patterns for allowed invocations.")
-    register_property(taxon="capability", entity="tool", name="deny-pattern", value_type=list, comparison="pattern-in", description="Glob patterns for denied invocations.")
-    register_property(taxon="capability", entity="kit", name="allow", value_type=bool, description="Whether the kit is permitted.")
+    register_property(taxon="capability", entity="tool", name="allow-pattern", value_type=list, comparison="pattern-in", restrictive_direction="subset", description="Glob patterns for allowed invocations.")
+    register_property(taxon="capability", entity="tool", name="deny-pattern", value_type=list, comparison="pattern-in", restrictive_direction="superset", description="Glob patterns for denied invocations.")
+    register_property(taxon="capability", entity="kit", name="allow", value_type=bool, restrictive_direction="false", description="Whether the kit is permitted.")
     register_property(
         taxon="capability",
         entity="tool",
@@ -383,14 +388,14 @@ def _register_state() -> None:
         taxon="state",
         name="mode",
         attributes={
-            "name": AttrSchema(type=str, description="Mode class name (used as .classname in selectors)"),
+            "name": AttrSchema(type=str, description="Mode ID (used as #id in selectors)"),
         },
         description=(
-            "A regulation mode (S3). Authored via class selectors like "
-            "`mode.implement` or `mode.implement.tdd`. Compositional — modes stack. "
-            "v0.5 registers the entity and supports mode-as-context-qualifier in "
-            "cross-axis cascade; runtime class-filtering is v0.6 (coordinated with "
-            "kibitzer's ChangeToolMode)."
+            "A regulation mode (S3). Authored via ID selectors: `mode#review`, "
+            "`mode#implement`. Modes are named instances, not categories — IDs, "
+            "not classes. Classes remain for mode categories: `mode#review.read-only`, "
+            "`mode#implement.destructive`. ID selectors ensure mode-qualified rules "
+            "dominate in the axis-count-first specificity model."
         ),
         category="regulation",
     )

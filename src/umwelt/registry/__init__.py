@@ -20,6 +20,7 @@ from umwelt.registry.matchers import (
 )
 from umwelt.registry.properties import (
     PropertySchema,
+    RestrictiveDirection,
     get_property,
     list_properties,
     register_property,
