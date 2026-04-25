@@ -471,6 +471,95 @@ World file (.world.yml)          Stylesheet (.umw)
 
 Everything in the compiled database is queryable via `engine.execute()` if the high-level API doesn't cover your case.
 
+## Multi-plugin coexistence
+
+When multiple plugins register entities in the same taxon, the world file population path handles this naturally — each plugin's entities go through `load_world()` into the compiled database, and the PolicyEngine resolves them together. No matcher conflicts arise because compilation doesn't use matchers.
+
+For live evaluation (runtime selector matching against state that isn't pre-compiled), the one-matcher-per-taxon constraint can be a problem. If blq and kibitzer both need to provide entities in the `state` taxon, they can't independently register matchers.
+
+The recommended pattern is a composite matcher that delegates by entity type:
+
+```python
+class CompositeMatcher:
+    """Delegate to per-type matchers within a single taxon."""
+
+    def __init__(self):
+        self._delegates: dict[str, MatcherProtocol] = {}
+
+    def add(self, entity_type: str, matcher: MatcherProtocol):
+        self._delegates[entity_type] = matcher
+
+    def match_type(self, type_name: str, context=None) -> list:
+        delegate = self._delegates.get(type_name)
+        return delegate.match_type(type_name, context) if delegate else []
+
+    def children(self, parent, child_type: str) -> list:
+        delegate = self._delegates.get(child_type)
+        return delegate.children(parent, child_type) if delegate else []
+
+    def condition_met(self, selector, context=None) -> bool:
+        return all(d.condition_met(selector, context) for d in self._delegates.values())
+
+    def get_attribute(self, entity, name: str):
+        for delegate in self._delegates.values():
+            val = delegate.get_attribute(entity, name)
+            if val is not None:
+                return val
+        return None
+
+    def get_id(self, entity) -> str | None:
+        for delegate in self._delegates.values():
+            val = delegate.get_id(entity)
+            if val is not None:
+                return val
+        return None
+```
+
+Register the composite once for the taxon; each plugin adds its delegate:
+
+```python
+composite = CompositeMatcher()
+composite.add("hook", kibitzer_matcher)
+composite.add("job", blq_matcher)
+register_matcher(taxon="state", matcher=composite)
+```
+
+This preserves the 1:1 taxon→matcher mapping at the registry level while allowing multiple sources underneath. In practice, most plugins won't need this — world file population covers the common case.
+
+## Cross-taxon policy invariants
+
+Per-taxon validators can check structural constraints within a taxon, but some invariants span taxa — "if tool#Bash is allowed, resource#wall-time must have a limit." These are best expressed as custom lint rules rather than validators, because the linter already sees the full resolved database:
+
+```python
+def lint_bash_requires_wall_time(engine: PolicyEngine) -> list[LintWarning]:
+    bash_allowed = engine.check(type="tool", id="Bash", allow="true")
+    wall_time = engine.resolve(type="resource", id="wall-time", property="limit")
+    if bash_allowed and wall_time is None:
+        return [LintWarning(
+            smell="missing_constraint",
+            severity="warning",
+            description="tool#Bash is allowed but resource#wall-time has no limit",
+            entities=("tool#Bash", "resource#wall-time"),
+            property=None,
+        )]
+    return []
+```
+
+Custom lint rules run after compilation and can query any entity type. This avoids adding a cross-taxon validator protocol — the PolicyEngine query API is already the cross-taxon interface.
+
+## Plugin discovery (future)
+
+Currently, plugins must be explicitly imported and their `register_*()` functions called. For systems where many plugins coexist, a future version will support `entry_points`-based autodiscovery:
+
+```toml
+# In a plugin's pyproject.toml
+[project.entry-points."umwelt.plugins"]
+blq = "blq.umwelt_plugin:register"
+kibitzer = "kibitzer.umwelt_plugin:register"
+```
+
+Until then, the recommended pattern is a single orchestration function that imports and registers all plugins needed for a given deployment.
+
 ## Design principles for plugin authors
 
 **Register at import time.** Call `register_*` functions when your module is imported, not lazily. This ensures the vocabulary is available before any parsing happens.
