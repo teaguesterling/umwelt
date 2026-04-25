@@ -49,11 +49,11 @@ Available shorthands (from the sandbox vocabulary):
 | `modes` | `mode` | list | `modes: [implement, review]` |
 | `principal` | `principal` | scalar | `principal: Teague` |
 | `inferencer` | `inferencer` | scalar | `inferencer: claude-sonnet` |
-| `resources` | `resource` | map | `resources: {memory: 512MB, wall-time: 5m}` |
+| `resources` | `resource` | block | `resources: {memory: 512MB, wall-time: 5m}` |
 
-### Map shorthands
+### Block shorthands
 
-Map shorthands create entities with an attribute set from the value:
+Block shorthands create a single entity with all key-value pairs as attributes:
 
 ```yaml
 resources:
@@ -61,7 +61,14 @@ resources:
   wall-time: 5m
 ```
 
-This creates two `resource` entities: `resource#memory` with `limit: 512MB` and `resource#wall-time` with `limit: 5m`. The `limit` attribute is configured by the shorthand's `attribute_key`.
+This creates one `resource` entity with attributes `{memory: "512MB", "wall-time": "5m"}`. The stylesheet then sets policy on the resource block as properties:
+
+```css
+resource { memory: 512MB; wall-time: 5m; }
+mode#implement resource { memory: 1GB; }
+```
+
+Each limit resolves independently in the cascade ��� you can override one without touching the others. This mirrors how Kubernetes, slurm, and nsjail model resource blocks.
 
 ## Explicit entities
 
@@ -276,8 +283,7 @@ tool#Bash { allow-pattern: "git *"; allow-pattern: "pytest *"; }
 
 mode#implement tool { max-level: 5; }
 
-resource#memory { limit: 1GB; }
-resource#wall-time { limit: 10m; }
+resource { memory: 1GB; wall-time: 10m; }
 ```
 
 Compile and query:
