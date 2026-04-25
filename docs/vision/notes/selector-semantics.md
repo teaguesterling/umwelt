@@ -17,7 +17,7 @@ file[path^="src/auth/"]     { editable: true; }
 tool[name="Bash"]            { allow: false; }
 hook[event="after-change"]   { run: "pytest"; }
 network                      { deny: "*"; }
-resource[kind="memory"]      { limit: 512MB; }
+resource                     { memory: 512MB; }
 ```
 
 **Rationale**:

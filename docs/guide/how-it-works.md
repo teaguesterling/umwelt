@@ -19,7 +19,7 @@ world#env-name                    ← the root: a named environment
       dir[name="auth"]
         file[name="login.py"]    ← a file the agent might edit
           node.function#auth     ← a code construct inside the file (v1.1)
-  resource[kind="memory"]         ← a runtime budget
+  resource                         ← a runtime resource block (memory, wall-time, etc.)
   network                         ← network access
   env[name="CI"]                  ← an environment variable
 ```

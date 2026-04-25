@@ -29,10 +29,10 @@ def toy_world_vocab():
             attributes={}, description="an inferencer")
         register_taxon(name="world", description="test world")
         register_entity(taxon="world", name="resource",
-            attributes={"limit": AttrSchema(type=str)}, description="a resource")
+            attributes={"name": AttrSchema(type=str)}, description="a resource block")
         register_shorthand(key="tools", entity_type="tool", form="list")
         register_shorthand(key="modes", entity_type="mode", form="list")
         register_shorthand(key="principal", entity_type="principal", form="scalar")
         register_shorthand(key="inferencer", entity_type="inferencer", form="scalar")
-        register_shorthand(key="resources", entity_type="resource", form="map", attribute_key="limit")
+        register_shorthand(key="resources", entity_type="resource", form="block")
         yield

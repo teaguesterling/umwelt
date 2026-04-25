@@ -160,15 +160,23 @@ def _expand_shorthands(
                 id=str(value),
                 provenance=Provenance.EXPLICIT,
             ))
+        elif shorthand.form == "block" and isinstance(value, dict):
+            attrs = {str(k): str(v) for k, v in value.items()}
+            entities.append(DeclaredEntity(
+                type=shorthand.entity_type,
+                id=shorthand.entity_type,
+                attributes=attrs,
+                provenance=Provenance.EXPLICIT,
+            ))
         elif shorthand.form == "map" and isinstance(value, dict):
             for k, v in value.items():
-                attrs: dict[str, Any] = {}
+                attrs_map: dict[str, Any] = {}
                 if shorthand.attribute_key is not None:
-                    attrs[shorthand.attribute_key] = str(v)
+                    attrs_map[shorthand.attribute_key] = str(v)
                 entities.append(DeclaredEntity(
                     type=shorthand.entity_type,
                     id=str(k),
-                    attributes=attrs,
+                    attributes=attrs_map,
                     provenance=Provenance.EXPLICIT,
                 ))
 

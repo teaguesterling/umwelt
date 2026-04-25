@@ -197,25 +197,25 @@ file#README.md                   { editable: false; }
 
 ---
 
-### `resource` — runtime resource
+### `resource` — runtime resource block
 
-A runtime resource with a limit. The `kind` attribute selects which resource.
+A single entity declaring runtime limits. Each limit is a property — the cascade resolves them independently, and `restrictive_direction="min"` ensures the tightest bound wins.
 
 | Attribute | Type | Required | Description |
 |---|---|---|---|
-| `kind` | str | yes | Resource kind: `memory`, `cpu-time`, `wall-time`, `max-fds`, `tmpfs` |
+| `name` | str | no | Resource block name |
 
 | Property | Type | Comparison | Description |
 |---|---|---|---|
-| `limit` | str | exact | Resource limit value with unit (e.g. `512MB`, `60s`, `128`) |
+| `memory` | str | <= (min) | Memory limit with unit (e.g. `512MB`, `1GB`) |
+| `wall-time` | str | <= (min) | Wall-clock time limit (e.g. `10m`, `1h`) |
+| `cpu` | str | <= (min) | CPU core limit (e.g. `2`, `0.5`) |
+| `max-fds` | int | <= (min) | Maximum open file descriptors |
 
 **Selector examples:**
 ```css
-resource[kind="memory"]    { limit: 512MB; }
-resource[kind="wall-time"] { limit: 5m; }
-resource[kind="cpu-time"]  { limit: 3m; }
-resource[kind="max-fds"]   { limit: 128; }
-resource[kind="tmpfs"]     { limit: 64MB; }
+resource { memory: 512MB; wall-time: 5m; cpu: 3; max-fds: 128; }
+mode#implement resource { memory: 1GB; wall-time: 30m; }
 ```
 
 ---
@@ -652,8 +652,7 @@ world#env-name                        ← world taxon (S0 — root of environmen
 │   │       └── file[name="util.py"]
 │   └── dir[name="tests"]
 │       └── file[name="test_login.py"]
-├── resource[kind="memory"]           ← runtime limits
-├── resource[kind="wall-time"]
+├── resource                          ← runtime limits (memory, wall-time, cpu, max-fds)
 ├── network                           ← network access
 ├── env[name="CI"]                    ← env vars
 └── exec[name="bash"]                 ← executable binaries

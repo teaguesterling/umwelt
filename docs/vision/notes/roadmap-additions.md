@@ -67,7 +67,7 @@ A visual (and textual) browser/editor for umwelt views. DevTools for policy.
         ▸ file[name="oauth.py"]     ← EDITABLE
       ▾ dir[name="common"]
         ▸ file[name="util.py"]      ← read-only
-  ▸ resource[kind="memory"]          512MB
+  ▸ resource                          memory=512MB
   ▸ network                          BLOCKED
   ▸ env[name="CI"]                   allowed
 
