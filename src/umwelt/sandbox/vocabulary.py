@@ -214,9 +214,9 @@ def _register_world() -> None:
         taxon="world",
         name="resource",
         attributes={
-            "kind": AttrSchema(type=str, required=True, description="Resource kind: memory, cpu-time, wall-time, max-fds, tmpfs"),
+            "name": AttrSchema(type=str, description="Resource block name"),
         },
-        description="A runtime resource with a limit.",
+        description="A resource block declaring runtime limits (memory, wall-time, cpu, etc.).",
         category="budget",
     )
 
@@ -260,7 +260,10 @@ def _register_world() -> None:
     register_property(taxon="world", entity="file", name="show", value_type=str, description="What to show: body, outline, signature.")
     register_property(taxon="world", entity="dir", name="editable", value_type=bool, restrictive_direction="false", description="Whether the actor may modify files in this dir.")
     register_property(taxon="world", entity="dir", name="visible", value_type=bool, restrictive_direction="false", description="Whether the actor can see this dir.")
-    register_property(taxon="world", entity="resource", name="limit", value_type=str, restrictive_direction="min", description="Resource limit value with unit (e.g. 512MB, 60s).")
+    register_property(taxon="world", entity="resource", name="memory", value_type=str, restrictive_direction="min", description="Memory limit with unit (e.g. 512MB, 1GB).")
+    register_property(taxon="world", entity="resource", name="wall-time", value_type=str, restrictive_direction="min", description="Wall-clock time limit (e.g. 10m, 1h).")
+    register_property(taxon="world", entity="resource", name="cpu", value_type=str, restrictive_direction="min", description="CPU core limit (e.g. 2, 0.5).")
+    register_property(taxon="world", entity="resource", name="max-fds", value_type=int, restrictive_direction="min", description="Maximum open file descriptors.")
     register_property(taxon="world", entity="network", name="deny", value_type=str, restrictive_direction="superset", description="Deny pattern ('*' for all).")
     register_property(taxon="world", entity="network", name="allow", value_type=bool, restrictive_direction="false", description="Whether this endpoint is allowed.")
     register_property(taxon="world", entity="env", name="allow", value_type=bool, restrictive_direction="false", description="Whether this env var is passed through.")
@@ -312,6 +315,8 @@ def _register_capability() -> None:
             "kit": AttrSchema(type=str, description="Kit this tool belongs to"),
             "altitude": AttrSchema(type=str, description="Enforcement altitude: os, language, semantic, conversational"),
             "level": AttrSchema(type=int, description="Computation level 0-8"),
+            "param-count": AttrSchema(type=int, description="Number of parameters (MCP-projected)"),
+            "output-type": AttrSchema(type=str, description="Output format: structured, text, stream (MCP-projected)"),
         },
         description="A tool the actor can call.",
         category="tools",
@@ -447,4 +452,4 @@ def _register_world_shorthands() -> None:
     register_shorthand(key="modes", entity_type="mode", form="list")
     register_shorthand(key="principal", entity_type="principal", form="scalar")
     register_shorthand(key="inferencer", entity_type="inferencer", form="scalar")
-    register_shorthand(key="resources", entity_type="resource", form="map", attribute_key="limit")
+    register_shorthand(key="resources", entity_type="resource", form="block")

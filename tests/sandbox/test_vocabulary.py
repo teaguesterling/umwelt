@@ -60,7 +60,7 @@ def test_world_resource_entity():
     with registry_scope():
         _register_sandbox()
         entity = get_entity("world", "resource")
-        assert "kind" in entity.attributes
+        assert "name" in entity.attributes
 
 
 def test_world_network_entity():
@@ -136,11 +136,13 @@ def test_hook_run_property():
         assert prop.name == "run"
 
 
-def test_resource_limit_property():
+def test_resource_properties():
     with registry_scope():
         _register_sandbox()
-        prop = get_property("world", "resource", "limit")
-        assert prop.name == "limit"
+        for name in ("memory", "wall-time", "cpu", "max-fds"):
+            prop = get_property("world", "resource", name)
+            assert prop.name == name
+            assert prop.restrictive_direction == "min"
 
 
 def test_network_deny_property():

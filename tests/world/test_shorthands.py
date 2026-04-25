@@ -33,6 +33,15 @@ def test_scope_isolation():
         assert get_shorthand("tools") is None
 
 
+def test_block_form():
+    with registry_scope():
+        register_shorthand(key="resources", entity_type="resource", form="block")
+        sd = get_shorthand("resources")
+        assert sd is not None
+        assert sd.form == "block"
+        assert sd.attribute_key is None
+
+
 def test_sandbox_vocabulary_registers_shorthands():
     from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
 
@@ -42,4 +51,17 @@ def test_sandbox_vocabulary_registers_shorthands():
         assert get_shorthand("modes") is not None
         assert get_shorthand("principal") is not None
         assert get_shorthand("inferencer") is not None
-        assert get_shorthand("resources") is not None
+        res = get_shorthand("resources")
+        assert res is not None
+        assert res.form == "block"
+
+
+def test_tool_entity_has_mcp_attributes():
+    from umwelt.registry.entities import get_entity
+    from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
+
+    with registry_scope():
+        register_sandbox_vocabulary()
+        tool_def = get_entity("capability", "tool")
+        assert "param-count" in tool_def.attributes
+        assert "output-type" in tool_def.attributes
