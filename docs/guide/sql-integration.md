@@ -235,7 +235,7 @@ compile_view(con, view, SQLiteDialect())
 
 ## Context Qualifiers
 
-Cross-axis selectors (e.g., `mode.explore tool`) are evaluated as global existence checks — the qualifier matches if any entity of that type/id exists in the database. This means the populator controls which context is "active" by choosing which entities to insert.
+Cross-axis selectors (e.g., `mode#explore tool`) are evaluated as global existence checks — the qualifier matches if any entity of that type/id exists in the database. This means the populator controls which context is "active" by choosing which entities to insert.
 
 For example, to evaluate policy for mode `explore`:
 
@@ -247,7 +247,7 @@ con.execute(
 )
 ```
 
-Rules qualified with `mode.explore` will now match; rules qualified with `mode.deploy` will not.
+Rules qualified with `mode#explore` will now match; rules qualified with `mode#deploy` will not.
 
 ## Selector-to-SQL Translation
 
@@ -264,7 +264,7 @@ The compiler translates each CSS selector form to SQL:
 | `file[path*="auth"]` | `json_extract(e.attributes, '$.path') LIKE '%auth%' ESCAPE '\'` |
 | `file:glob("src/**")` | `json_extract(e.attributes, '$.path') LIKE 'src/%' ESCAPE '\'` |
 | `dir[name="src"] file` | Structural descent via `entity_closure` JOIN |
-| `mode.explore tool` | Cross-axis `EXISTS` subquery |
+| `mode#explore tool` | Cross-axis `EXISTS` subquery |
 
 ## Troubleshooting
 

@@ -39,7 +39,7 @@ This milestone restructures umwelt's taxa to these axes, so subsequent compiler 
 1. **VSM-aligned taxa** (§2) replacing the current five-taxon model.
 2. **`use[of=...]` primitive** (§3) — the action-axis permissioned projection of a world resource. **Additive, not replacing** — world-axis permissions on resources (`file { editable: true; }`) and action-axis permissions on uses (`use[of=file#X] { editable: true; }`) are semantically independent (see §3a).
 3. **`audit` placed outside the world** (§4) — architectural, not conventional.
-4. **Mode as a class, not an ID** (§5) — `mode.implement`, compositional across worlds.
+4. **Mode as an ID, with optional classes** (§5) — `mode#implement`, `mode#implement.tdd`, compositional across worlds.
 5. **Cross-axis cascade** (§6) — specificity counts contributions from every axis a selector names.
 6. **Migration path** (§9) — every current entity mapped to its new axis; existing views work unchanged because world-axis properties remain.
 7. **v0.5 vertical slices** (§10) — each buildable independently, each leaving the test suite green.
@@ -132,7 +132,7 @@ use[of="file#/src/auth.py"] { editable: true; visible: true; show: outline; }
 use[of="exec#bash"]         { allow: true; }
 
 /* cross-axis: specific use in a specific context */
-mode.implement use[of-like="file#/src/**/*.py"] { editable: true; }
+mode#implement use[of-like="file#/src/**/*.py"] { editable: true; }
 inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
 ```
 
@@ -202,7 +202,7 @@ file[path="/etc/secrets.conf"] { editable: false; visible: false; }
 
 /* action-axis: the delegate's access path has these permissions */
 use { visible: true; editable: false; }                           /* default deny-edit */
-mode.implement use[of-like="file#/src"] { editable: true; }       /* mode grants edit on src */
+mode#implement use[of-like="file#/src"] { editable: true; }       /* mode grants edit on src */
 ```
 
 Both declarations are active. A write to `/etc/secrets.conf` fails at the world-axis check even if the mode's use rule would otherwise grant edit.
@@ -238,28 +238,23 @@ In v0.5 the audit taxon is registered and the at-rule parses, but no audit compi
 
 ## 5. Mode as a class, not an ID
 
-CSS semantics:
-
-- `#foo` — ID selector. Unique per document. Specificity 100.
-- `.foo` — class selector. Repeatable, compositional. Specificity 10.
-
-Modes are compositional (an actor can be in `.testing.strict`), repeat across worlds (same `.testing` class applies in dev and staging), and don't uniquely identify a document element. They're classes.
+Modes are named instances — `mode#review`, `mode#implement` — authored via ID selectors. IDs ensure mode-qualified rules dominate in the axis-count-first specificity model (IDs contribute more weight than classes). Classes remain for categories: `mode#implement.tdd` narrows to implement mode with a tdd flavor.
 
 ```css
-mode.testing                { /* every mode with the testing class */ }
-mode.testing.strict         { /* narrower: both classes present */ }
-world#dev mode.testing      { /* testing mode, dev world context */ }
+mode#testing                { /* the testing mode instance */ }
+mode#testing.strict         { /* narrower: testing mode with strict category */ }
+world#dev mode#testing      { /* testing mode, dev world context */ }
 ```
 
 This lets a single view declare multiple modes that can stack:
 
 ```css
-mode.implement { /* base implement mode */ }
-mode.implement.tdd { /* implement + tdd-flavor */ }
-mode.explore { writable: "none"; }
+mode#implement { /* base implement mode */ }
+mode#implement.tdd { /* implement + tdd-flavor */ }
+mode#explore { writable: "none"; }
 ```
 
-At runtime, the active mode-set determines which rules apply. The kibitzer-hooks compiler (v0.6) will emit one `[modes.<name>]` block per distinct class it finds, with permissions conjoined via their class intersection.
+At runtime, the active mode-set determines which rules apply. The kibitzer-hooks compiler (v0.6) will emit one `[modes.<name>]` block per distinct mode ID it finds, with permissions conjoined via their class intersection.
 
 ---
 
@@ -288,7 +283,7 @@ Tuple comparison left-to-right. `axis_count` first means "a selector that touche
 Example ordering (highest to lowest specificity):
 
 1. `inferencer#opus tool[name=Edit] use[of="file#/src/auth.py"] { editable: true }` — 3 axes, ID on each.
-2. `mode.implement use[of-like="file#/src/**/*.py"] { editable: true }` — 2 axes, class + attr.
+2. `mode#implement use[of-like="file#/src/**/*.py"] { editable: true }` — 2 axes, ID + attr.
 3. `use[of="file#/src/auth.py"] { editable: true }` — 1 axis, ID.
 4. `use { editable: true }` — 1 axis, bare element.
 
@@ -309,7 +304,7 @@ The user's end-to-end example, annotated:
 ```css
 principal#Teague
   world#sandbox-123:has(file#/foo.txt)
-  mode.testing
+  mode#testing
   harness#claude-code
   inferencer#opus-46
   tool#Bash
@@ -324,7 +319,7 @@ Reading left-to-right, axis by axis:
 |---|---|---|---|
 | `principal#Teague` | principal | S5 | "commissioned by Teague" |
 | `world#sandbox-123:has(file#/foo.txt)` | world | S0 | "in a sandbox that contains /foo.txt" |
-| `mode.testing` | control | S3 | "with testing mode active" |
+| `mode#testing` | control | S3 | "with testing mode active" |
 | `harness#claude-code` | coordination | S2 | "under claude-code harness" |
 | `inferencer#opus-46` | intelligence | S4 | "using Opus 4.6" |
 | `tool#Bash` | operation | S1 | "via the Bash tool" |
@@ -454,7 +449,7 @@ Sequence: A → B → C → D → E. A-B-C can be parallelized across sub-agents
 | Is audit inside or outside the world? | Outside. Architectural S3\* bypass. |
 | Do resources live in world or under coordination? | World. `use` projects them into the action axis. |
 | What name for the action-link entity? | `use` (with `of=` attribute). Considered `handle`, `ref`; `use` wins because permissions are on *usage*, and SVG precedent exists. |
-| Do modes compose? | Yes — `mode.implement.tdd` is legal; kibitzer compiler derives distinct mode blocks from class sets. |
+| Do modes compose? | Yes — `mode#implement.tdd` is legal (ID + class); kibitzer compiler derives distinct mode blocks from IDs with class intersection. |
 | Does audit_count primacy break existing cascades? | No — every legacy rule has `axis_count=1`, uniform comparison. |
 | Is the kibitzer-hooks compiler in v0.5? | No — moved to v0.6 so v0.5 can land the restructure cleanly. The v0.6 compiler is ~1 slice of work once v0.5 lands. |
 | Are the `security pass` and `public API freeze` in v0.5? | No — deferred to v0.6 / v0.7. v0.5 is the restructure milestone. |

@@ -65,7 +65,7 @@ audit                                     ← outside everything (S3*)
 A rule like:
 
 ```css
-principal#Teague world#sandbox-123 mode.testing harness#claude-code
+principal#Teague world#sandbox-123 mode#testing harness#claude-code
   inferencer#opus-46 tool#Bash exec#sed use[of="file#/foo.txt"]
   { editable: true; }
 ```

@@ -350,12 +350,12 @@ tool[name="Bash"] {
 }
 
 /* Cross-axis: mode-gated tool surface (see also "Cross-axis idioms" below) */
-mode.explore tool                   { allow: false; }          /* default-deny in explore */
-mode.explore tool[name="Read"]      { allow: true; }
-mode.explore tool[name="Grep"]      { allow: true; }
+mode#explore tool                   { allow: false; }          /* default-deny in explore */
+mode#explore tool[name="Read"]      { allow: true; }
+mode#explore tool[name="Grep"]      { allow: true; }
 
-mode.test tool[name="Edit"]         { allow: true; max-level: 3; }
-mode.test tool[name="Bash"]         { allow: true; allow-pattern: "pytest *"; }
+mode#test tool[name="Edit"]         { allow: true; max-level: 3; }
+mode#test tool[name="Bash"]         { allow: true; allow-pattern: "pytest *"; }
 ```
 
 ---
@@ -408,7 +408,7 @@ The `of=` attribute takes a selector string pointing into the world axis. `use` 
 use { editable: false; }
 
 /* grant edit on all Python source files in implement mode */
-mode.implement use[of-like="file#/src"] { editable: true; }
+mode#implement use[of-like="file#/src"] { editable: true; }
 
 /* specific use in a specific context */
 inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
@@ -428,26 +428,26 @@ The v0.5 cascade lets selectors join multiple axes. A rule that names more axes 
 
 ### Mode-gated tool surface
 
-When the goal is "in this mode, these tools are on the menu; others are not," reach for a plain `mode.<class> tool[name=...]` cross-axis rule — **not** `use[of="tool#..."]`. Tool-level rules are shorter, and tool presence is the capability-level concept, not an invocation concept.
+When the goal is "in this mode, these tools are on the menu; others are not," reach for a `mode#<id> tool[name=...]` cross-axis rule — **not** `use[of="tool#..."]`. Tool-level rules are shorter, and tool presence is the capability-level concept, not an invocation concept.
 
 ```css
 /* Default-deny all tools in explore mode, then allow a narrow set. */
-mode.explore tool                 { allow: false; }
-mode.explore tool[name="Read"]    { allow: true; }
-mode.explore tool[name="Grep"]    { allow: true; }
-mode.explore tool[name="Glob"]    { allow: true; }
+mode#explore tool                 { allow: false; }
+mode#explore tool[name="Read"]    { allow: true; }
+mode#explore tool[name="Grep"]    { allow: true; }
+mode#explore tool[name="Glob"]    { allow: true; }
 
 /* Implement mode: default-allow except for destructive tools. */
-mode.implement tool[name="Bash"]  { allow: false; }
+mode#implement tool[name="Bash"]  { allow: false; }
 
 /* Test mode: narrow Bash to test runners. */
-mode.test tool[name="Bash"]       { allow: true; allow-pattern: "pytest *", "blq run *"; }
+mode#test tool[name="Bash"]       { allow: true; allow-pattern: "pytest *", "blq run *"; }
 
 /* Review mode: read-only posture. */
-mode.review tool                  { allow: false; }
-mode.review tool[name="Read"]     { allow: true; }
-mode.review tool[name="Grep"]     { allow: true; }
-mode.review tool[name="Glob"]     { allow: true; }
+mode#review tool                  { allow: false; }
+mode#review tool[name="Read"]     { allow: true; }
+mode#review tool[name="Grep"]     { allow: true; }
+mode#review tool[name="Glob"]     { allow: true; }
 ```
 
 `visible` follows `allow` by default, so these rules also control what the delegate sees in the tool menu. The compiler can downgrade to visibility-only if the enforcement altitude doesn't support denial.
@@ -461,7 +461,7 @@ Use `use[of=...]` when the rule is specifically about **an invocation of the too
 use[of="tool#Bash"] { allow-pattern: "git commit *", "git push *"; }
 
 /* Per-resource permission on a tool that can touch many resources. */
-mode.implement use[of="file#/src/auth.py"] { editable: true; }
+mode#implement use[of="file#/src/auth.py"] { editable: true; }
 
 /* Three-way: inferencer × tool × specific file. */
 inferencer#opus tool[name="Edit"] use[of="file#/src/auth.py"] { editable: true; }
@@ -476,11 +476,11 @@ Rule of thumb:
 Once you have principal + mode + (tool or use), a rule can express very specific policy concisely:
 
 ```css
-principal#Teague mode.implement tool[name="Bash"] {
+principal#Teague mode#implement tool[name="Bash"] {
   allow-pattern: "git *", "pytest *";
 }
 
-principal#Teague mode.test use[of-like="file#tests/"] {
+principal#Teague mode#test use[of-like="file#tests/"] {
   editable: true;
 }
 ```

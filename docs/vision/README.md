@@ -147,6 +147,8 @@ PolicyEngine replaces the separate ducklog package for consumers like Kibitzer a
 | [`compilers/index.md`](./compilers/index.md) | Compiler taxonomy — implemented and planned, local-vs-remote locality axis, sync-vs-async, how to add new compilers. |
 | [`compilers/nsjail.md`](./compilers/nsjail.md) | Mapping from view constructs to nsjail's protobuf textproto format. |
 | [`compilers/bwrap.md`](./compilers/bwrap.md) | Mapping from view constructs to bwrap's argv format. |
+| [`world-state.md`](./world-state.md) | **The world state layer.** Three-layer architecture (vocabulary/world/policy = DTD/DOM/CSS). YAML world files, discovery recipes, projections, materialization, SQL schema extensions. |
+| [`linter.md`](./linter.md) | **The cross-format linter.** Lint pass over world file + policy as a pair. Directional properties, permissive-override detection, specificity conflict analysis, drift detection. |
 | [`evaluation-framework.md`](./evaluation-framework.md) | **The claim ledger.** ~35 falsifiable claims, evaluation methodology per category, stopping rules. |
 | [`notes/vsm-alignment.md`](./notes/vsm-alignment.md) | Beer's VSM as the organizing principle for umwelt's taxa. |
 | [`notes/logic-semantics.md`](./notes/logic-semantics.md) | umwelt views as Datalog programs. Landscape: OPA, Cedar, Polar, Binder. What's novel. |

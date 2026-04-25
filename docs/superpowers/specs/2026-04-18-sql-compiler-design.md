@@ -122,10 +122,10 @@ The compiler walks umwelt's AST (`ComplexSelector` → `CompoundPart` → `Simpl
 |---|---|
 | `file` | `e.type_name = 'file'` |
 | `tool#Read` | `e.type_name = 'tool' AND e.entity_id = 'Read'` |
-| `mode.implement` | `e.type_name = 'mode' AND EXISTS(SELECT 1 FROM json_each(e.classes) WHERE value='implement')` |
+| `mode#implement` | `e.type_name = 'mode' AND e.entity_id = 'implement'` |
 | `file[path^="src/"]` | `e.type_name = 'file' AND json_extract(e.attributes, '$.path') LIKE 'src/%'` |
 | `file:glob("*.py")` | `json_extract(e.attributes, '$.path') LIKE '%.py'` |
-| `mode.explore tool` | Context qualifier: `EXISTS(SELECT 1 FROM entities q0 WHERE ...) AND e.type_name='tool'` |
+| `mode#explore tool` | Context qualifier: `EXISTS(SELECT 1 FROM entities q0 WHERE ...) AND e.type_name='tool'` |
 | `dir[name="src"] file` | Structural ancestor: `EXISTS(... JOIN entity_closure ec ON ... WHERE ec.depth > 0 AND ...)` |
 
 ### PyPika's Role
