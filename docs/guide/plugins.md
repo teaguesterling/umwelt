@@ -85,13 +85,15 @@ register_entity(
         "name": AttrSchema(type=str, required=True, description="Tool name"),
         "kit": AttrSchema(type=str, description="Kit this tool belongs to"),
         "level": AttrSchema(type=int, description="Computation level 0-8"),
+        "param-count": AttrSchema(type=int, description="Number of parameters (MCP-projected)"),
+        "output-type": AttrSchema(type=str, description="Output format: structured, text, stream"),
     },
     description="A tool the actor can call.",
     category="tools",
 )
 ```
 
-An **entity type** is a CSS element type. Once `tool` is registered, selectors like `tool#Bash`, `tool.dangerous`, and `tool[kit="filesystem"]` become valid. The `attributes` schema defines what attribute selectors can match against.
+An **entity type** is a CSS element type. Once `tool` is registered, selectors like `tool#Bash`, `tool.dangerous`, and `tool[kit="filesystem"]` become valid. The `attributes` schema defines what attribute selectors can match against — including MCP-projected attributes like `param-count` and `output-type` that enable selectors like `tool[output-type="structured"] { cache: true; }`.
 
 ### Property registration
 
@@ -135,16 +137,17 @@ from umwelt.world.shorthands import register_shorthand
 register_shorthand(key="tools", entity_type="tool", form="list")
 register_shorthand(key="modes", entity_type="mode", form="list")
 register_shorthand(key="principal", entity_type="principal", form="scalar")
-register_shorthand(key="resources", entity_type="resource", form="map", attribute_key="limit")
+register_shorthand(key="resources", entity_type="resource", form="block")
 ```
 
-Shorthands let world file authors write `tools: [Read, Edit]` instead of explicit entity blocks. Three forms:
+Shorthands let world file authors write `tools: [Read, Edit]` instead of explicit entity blocks. Four forms:
 
 | Form | YAML syntax | Expansion |
 |---|---|---|
 | `list` | `tools: [Read, Edit]` | One entity per list item, item becomes the `id` |
 | `scalar` | `principal: Teague` | One entity, value becomes the `id` |
-| `map` | `resources: {memory: 512MB}` | One entity per key, key is `id`, value goes to `attribute_key` |
+| `map` | `tags: {hot: critical}` | One entity per key, key is `id`, value goes to `attribute_key` |
+| `block` | `resources: {memory: 512MB}` | One entity, keys become attributes |
 
 ### Wiring it together
 
@@ -528,18 +531,18 @@ This preserves the 1:1 taxon→matcher mapping at the registry level while allow
 
 ## Cross-taxon policy invariants
 
-Per-taxon validators can check structural constraints within a taxon, but some invariants span taxa — "if tool#Bash is allowed, resource#wall-time must have a limit." These are best expressed as custom lint rules rather than validators, because the linter already sees the full resolved database:
+Per-taxon validators can check structural constraints within a taxon, but some invariants span taxa — "if tool#Bash is allowed, the resource block must set a wall-time limit." These are best expressed as custom lint rules rather than validators, because the linter already sees the full resolved database:
 
 ```python
 def lint_bash_requires_wall_time(engine: PolicyEngine) -> list[LintWarning]:
     bash_allowed = engine.check(type="tool", id="Bash", allow="true")
-    wall_time = engine.resolve(type="resource", id="wall-time", property="limit")
+    wall_time = engine.resolve(type="resource", id="resource", property="wall-time")
     if bash_allowed and wall_time is None:
         return [LintWarning(
             smell="missing_constraint",
             severity="warning",
-            description="tool#Bash is allowed but resource#wall-time has no limit",
-            entities=("tool#Bash", "resource#wall-time"),
+            description="tool#Bash is allowed but resource has no wall-time limit",
+            entities=("tool#Bash", "resource"),
             property=None,
         )]
     return []
