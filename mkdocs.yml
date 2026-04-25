@@ -50,6 +50,9 @@ nav:
   - Home: index.md
   - Guide:
     - Writing Views: guide/writing-views.md
+    - World Files: guide/world-files.md
+    - PolicyEngine: guide/policy-engine.md
+    - Plugins: guide/plugins.md
     - Entity Reference: guide/entity-reference.md
     - How It Works: guide/how-it-works.md
     - SQL Compiler:
