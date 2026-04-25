@@ -9,7 +9,7 @@ world#auth-fix {
   tool[name="Read"]        { allow: true; }
   tool[name="Bash"]        { allow: false; }
   network                  { deny: "*"; }
-  resource[kind="memory"]  { limit: 512MB; }
+  resource                 { memory: 512MB; wall-time: 5m; }
   hook[event="after-change"] { run: "pytest tests/auth/"; }
 }
 ```

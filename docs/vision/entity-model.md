@@ -60,7 +60,7 @@ The W-axis entities. Files, directories, code nodes, mounts, env vars, network e
 | `mount` | — | `src`, `dst`, `type`, `writable` | A bind mount in the workspace. |
 | `env` | — | `name`, `value` (write-only — reading value from a view is disallowed for safety) | An environment variable. |
 | `network` | — | `host`, `port`, `protocol` | A network endpoint. v1 supports `*` wildcard only; explicit hosts are v1.1+. |
-| `resource` | — | `kind`, `unit`, `limit` | A runtime resource: memory, cpu, wall-time, cpu-time, tmpfs, max-fds. |
+| `resource` | — | `memory`, `cpu-time`, `wall-time`, `tmpfs`, `max-fds` | A runtime resource. Each limit dimension is a property on the entity: `memory`, `cpu-time`, `wall-time`, `tmpfs`, `max-fds`. |
 
 #### Structural relationships
 
@@ -75,8 +75,7 @@ dir[name="src"] dir[name="test"] file      { editable: false; }
 file:glob("src/**/*.py")                    { editable: true; }
 file[path^="src/auth/"] node[kind="function"][name="authenticate"] { show: body; }
 
-resource[kind="memory"]                    { limit: 512MB; }
-resource[kind="wall-time"]                 { limit: 60s; }
+resource                                   { memory: 512MB; wall-time: 60s; }
 network                                    { deny: "*"; }
 env[name="CI"]                             { allow: true; }
 env[name="PYTHONPATH"]                     { allow: true; }
@@ -273,7 +272,7 @@ tool[name="Bash"] file[path^="src/auth/"] node[kind="function"][name="protected"
 actor#delegate file[path^="secrets/"] { visible: false; }
           /* delegate actors cannot see files in secrets/ */
 
-job[delegate="true"] resource[kind="memory"] { max-limit: 256MB; }
+job[delegate="true"] resource { max-memory: 256MB; }
           /* sub-delegate jobs have a tighter memory cap than the parent */
 
 hook[event="before-call"] tool[name="Bash"] { allow-pattern: "git *", "pytest *"; }
@@ -410,7 +409,7 @@ Both selectors have `file` as the entity type, but they resolve to different tax
 @world {
   file[path^="src/"]       { editable: true; }
   file[path$=".md"]        { editable: false; }
-  resource[kind="memory"]  { limit: 512MB; }
+  resource                 { memory: 512MB; }
   network                  { deny: "*"; }
 }
 
@@ -619,7 +618,7 @@ The existing v1 sandbox at-rules (`@source`, `@tools`, `@after-change`, `@networ
 | `@source("src/auth") { .fn#authenticate { show: body; editable: true; } }` | `file[path^="src/auth/"] node[kind="function"][name="authenticate"] { show: body; editable: true; }` |
 | `@tools { allow: Read, Edit; deny: Bash; kit: python-dev; }` | `tool[name="Read"] { allow: true; } tool[name="Edit"] { allow: true; } tool[name="Bash"] { allow: false; } kit[name="python-dev"] { allow: true; }` |
 | `@network { deny: *; }` | `network { deny: "*"; }` |
-| `@budget { memory: 512MB; wall-time: 60s; }` | `resource[kind="memory"] { limit: 512MB; } resource[kind="wall-time"] { limit: 60s; }` |
+| `@budget { memory: 512MB; wall-time: 60s; }` | `resource { memory: 512MB; wall-time: 60s; }` |
 | `@env { allow: CI, PYTHONPATH; deny: *; }` | `env[name="CI"] { allow: true; } env[name="PYTHONPATH"] { allow: true; } env { allow: false; }` (with cascade: specific wins over `*`) |
 | `@after-change { test: pytest tests/; lint: ruff check src/; }` | `hook[event="after-change"] { run: "pytest tests/"; run: "ruff check src/"; }` |
 
@@ -647,10 +646,10 @@ blq's `SandboxSpec` has eight dimensions. Here's how each one maps to the entity
 |---|---|---|
 | `network` | `none`, `localhost`, `allowed_hosts`, `unrestricted` | `network { deny: "*" }` / `network[host="localhost"] { allow: true }` / etc. |
 | `filesystem` | `readonly`, `workspace_only`, `scoped_write`, `unrestricted` | `file { editable: false }` (readonly) / `file:glob("workspace/**") { editable: true }` (workspace_only) / (unrestricted = omit) |
-| `timeout` | duration | `resource[kind="wall-time"] { limit: <duration>; }` |
-| `memory` | size | `resource[kind="memory"] { limit: <size>; }` |
-| `cpu` | duration | `resource[kind="cpu-time"] { limit: <duration>; }` |
-| `processes` | `isolated`, `visible` | `resource[kind="pids"] { isolation: <mode>; }` (or cleaner: `tool { max-level: 4; }` to block level 7 subprocess spawn) |
+| `timeout` | duration | `resource { wall-time: <duration>; }` |
+| `memory` | size | `resource { memory: <size>; }` |
+| `cpu` | duration | `resource { cpu-time: <duration>; }` |
+| `processes` | `isolated`, `visible` | `resource { pids: <mode>; }` (or cleaner: `tool { max-level: 4; }` to block level 7 subprocess spawn) |
 | `tmpfs` | size | `mount[dst="/tmp"] { type: "tmpfs"; size: <size>; }` |
 | `paths_hidden` | list | `dir[path="/home"] { visible: false; } dir[path="/var"] { visible: false; } ...` |
 
@@ -716,7 +715,7 @@ The validator receives the parsed rules for its taxon and returns a list of warn
 - Globs are well-formed.
 - Known entity types and property names are used correctly.
 
-Cross-taxon invariants (e.g., "if `tool[name="Bash"] { allow: true }` then `resource[kind="wall-time"]` must set a limit") are not in v1. They would require a whole-view validator that sees multiple taxa at once; deferred.
+Cross-taxon invariants (e.g., "if `tool[name="Bash"] { allow: true }` then `resource` must set a `wall-time` limit") are not in v1. They would require a whole-view validator that sees multiple taxa at once; deferred.
 
 Unknown at-rules, unknown entity types, and unknown declarations are always preserved with warnings, following the forward-compatibility principle from the policy-layer doc. A view can reference taxa that aren't currently registered; the view parses fine, and compilers that understand those taxa produce output for them while compilers that don't silently skip. This is how views written for a future vocabulary degrade on older umwelt installations.
 
@@ -740,7 +739,7 @@ world (4 rules)
   file[path^="src/auth/"]            editable=true
   file                                editable=false
   network                             deny="*"
-  resource[kind="memory"]             limit=512MB
+  resource                            memory=512MB
 
 capability (2 rules)
   tool                                max-level=2
