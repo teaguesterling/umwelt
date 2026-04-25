@@ -1,8 +1,8 @@
 # PolicyEngine
 
-The PolicyEngine is the consumer-facing Python API for querying resolved policy. It compiles a world file and a stylesheet into an in-memory SQLite database, resolves the CSS cascade, and answers questions about the result.
+The PolicyEngine is the primary API for consumers integrating with umwelt. It's the only interface most plugins need — the parser, selector engine, cascade resolver, and SQL compiler are internal implementation details that consumers never touch directly.
 
-**umwelt declares, consumers enforce.** The PolicyEngine tells you what the policy says. Your tool — Kibitzer, Lackpy, a custom hook, an agent framework — decides what to do about it.
+**umwelt declares, consumers enforce.** The PolicyEngine tells you what the policy says. Your tool — Kibitzer, Lackpy, a custom hook, an agent framework — decides what to do about it. The parsing and compilation pipeline is an internal concern; consumers interact with the PolicyEngine, not with the parser or compiler.
 
 ## Quick start
 
@@ -372,6 +372,43 @@ engine = PolicyEngine.from_db("compiled.duckdb")
 ns = build_tool_namespace(engine)
 # → {"Read": {"name": "Read"}, "Bash": {"name": "Bash", "max_level": 3, "patterns": ["git *"]}}
 ```
+
+## Worked example: a sandbox builder querying exec policy
+
+A sandbox builder like nsjail reads exec and dir policy — a completely different slice of the same compiled database. It doesn't care about tools or modes:
+
+```python
+from umwelt.policy import PolicyEngine
+
+def build_nsjail_config(engine: PolicyEngine) -> dict:
+    """Build nsjail mount and exec configuration from resolved policy."""
+    config = {"mounts": [], "exec_paths": []}
+
+    for exe in engine.resolve_all(type="exec"):
+        props = exe["properties"]
+        path = props.get("path")
+        if path:
+            config["exec_paths"].append(path)
+            if props.get("search-path"):
+                config["search_paths"] = props["search-path"].split(":")
+
+    for d in engine.resolve_all(type="dir"):
+        props = d["properties"]
+        config["mounts"].append({
+            "src": props.get("path", ""),
+            "dst": props.get("path", ""),
+            "rw": props.get("writable") == "true",
+        })
+
+    return config
+
+engine = PolicyEngine.from_db("compiled.duckdb")
+nsjail = build_nsjail_config(engine)
+# → {"mounts": [{"src": "src/", "dst": "src/", "rw": true}],
+#    "exec_paths": ["/bin/bash", "/usr/bin/git"]}
+```
+
+This consumer never queries tool or mode entities. Kibitzer queries tools; the sandbox builder queries execs and dirs. Same database, different consumers reading different slices — that's the "umwelt declares, consumers enforce" pattern in practice.
 
 ## Worked example: policy-aware test fixture
 
