@@ -242,7 +242,7 @@ class TestFullPolicy:
             tool[name="Bash"] { allow-pattern: "pytest *"; }
 
             network { deny: "*"; }
-            resource[kind="memory"] { limit: 512MB; }
+            resource { memory: 512MB; }
         ''')
         assert rv.property("src/auth.py", "editable") == "true"
         assert rv.property("README.md", "editable") == "false"
@@ -256,5 +256,5 @@ class TestFullPolicy:
         assert "pytest *" in patterns
 
         assert rv.property_by_id(25, "deny") == "*"
-        assert rv.property("memory", "limit") == "512MB"
+        assert rv.property("resource", "memory") == "512MB"
         rv.assert_a1()

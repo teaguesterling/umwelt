@@ -5,4 +5,4 @@ tool[name="Read"] { allow: true; }
 tool[name="Grep"] { allow: true; }
 tool[name="Glob"] { allow: true; }
 network { deny: "*"; }
-resource[kind="wall-time"] { limit: 60s; }
+resource { wall-time: 60s; }

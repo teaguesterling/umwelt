@@ -146,23 +146,19 @@ class BwrapCompiler:
         entity: Any,
         props: dict[str, str],
     ) -> None:
-        kind = getattr(entity, "kind", "")
-        limit = props.get("limit", "")
-        if not limit:
-            return
-        if kind == "memory":
-            bytes_val = parse_memory_mb(limit) * 1024 * 1024
+        if props.get("memory"):
+            bytes_val = parse_memory_mb(props["memory"]) * 1024 * 1024
             result.wrapper.extend(["prlimit", f"--as={bytes_val}"])
-        elif kind == "wall-time":
-            secs = parse_time_seconds(limit)
+        if props.get("wall-time"):
+            secs = parse_time_seconds(props["wall-time"])
             result.wrapper.extend(["timeout", str(secs)])
-        elif kind == "cpu-time":
-            secs = parse_time_seconds(limit)
+        if props.get("cpu"):
+            secs = parse_time_seconds(props["cpu"])
             result.wrapper.extend(["prlimit", f"--cpu={secs}"])
-        elif kind == "max-fds":
-            result.wrapper.extend(["prlimit", f"--nofile={int(limit)}"])
-        elif kind == "tmpfs":
-            tmpfs_flags.append(("--tmpfs", "/tmp", f"--size={parse_size_for_tmpfs(limit)}"))
+        if props.get("max-fds"):
+            result.wrapper.extend(["prlimit", f"--nofile={int(props['max-fds'])}"])
+        if props.get("tmpfs"):
+            tmpfs_flags.append(("--tmpfs", "/tmp", f"--size={parse_size_for_tmpfs(props['tmpfs'])}"))
 
     def _collect_network(
         self,

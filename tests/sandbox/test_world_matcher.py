@@ -80,13 +80,11 @@ def test_match_type_unknown_returns_empty(tmp_path):
     assert matcher.match_type("ghost") == []
 
 
-def test_resource_entities(tmp_path):
+def test_resource_entity_singleton(tmp_path):
     tree = _make_tree(tmp_path)
     matcher = WorldMatcher(base_dir=tree)
     resources = matcher.match_type("resource")
-    kinds = {matcher.get_attribute(r, "kind") for r in resources}
-    assert "memory" in kinds
-    assert "wall-time" in kinds
+    assert len(resources) == 1
 
 
 def test_network_entity(tmp_path):

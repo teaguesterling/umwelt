@@ -19,7 +19,6 @@ from umwelt.sandbox.entities import (
     WorldEntity,
 )
 
-RESOURCE_KINDS = ("memory", "cpu-time", "wall-time", "max-fds", "tmpfs")
 
 
 class WorldMatcher:
@@ -62,7 +61,7 @@ class WorldMatcher:
         if type_name == "dir":
             return list(self._dirs or [])
         if type_name == "resource":
-            return [ResourceEntity(kind=k) for k in RESOURCE_KINDS]
+            return [ResourceEntity()]
         if type_name == "network":
             return [NetworkEntity()]
         if type_name == "env":
@@ -72,7 +71,7 @@ class WorldMatcher:
             result.append(WorldEntity(name=self._world_name))
             result.extend(self._files or [])
             result.extend(self._dirs or [])
-            result.extend(ResourceEntity(kind=k) for k in RESOURCE_KINDS)
+            result.append(ResourceEntity())
             result.append(NetworkEntity())
             result.extend(EnvEntity(name=n) for n in self._env_vars)
             return result
@@ -115,9 +114,6 @@ class WorldMatcher:
         name = getattr(entity, "name", None)
         if name is not None:
             return str(name)
-        kind = getattr(entity, "kind", None)
-        if kind is not None:
-            return str(kind)
         return None
 
 

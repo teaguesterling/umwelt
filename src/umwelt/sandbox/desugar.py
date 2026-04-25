@@ -270,8 +270,7 @@ def _desugar_network(
 
 # ---------------------------------------------------------------------------
 # @budget { memory: 512MB; wall-time: 60s; }
-# → resource[kind="memory"] { limit: 512MB; }
-# → resource[kind="wall-time"] { limit: 60s; }
+# → resource { memory: 512MB; wall-time: 60s; }
 # ---------------------------------------------------------------------------
 
 def _desugar_budget(
@@ -286,27 +285,28 @@ def _desugar_budget(
     decl_nodes = tinycss2.parse_declaration_list(
         content, skip_comments=True, skip_whitespace=True
     )
-    rules: list[RuleBlock] = []
+    decls: list[Declaration] = []
     for d in decl_nodes:
         if getattr(d, "type", None) != "declaration":
             continue
-        kind = str(getattr(d, "lower_name", None) or getattr(d, "name", ""))
+        prop_name = str(getattr(d, "lower_name", None) or getattr(d, "name", ""))
         raw_val = tinycss2.serialize(list(getattr(d, "value", []) or [])).strip()
-
-        sel_text = f'resource[kind="{kind}"]'
-        selectors = _parse_sel(sel_text, source_path)
-        decl = Declaration(
-            property_name="limit",
+        decls.append(Declaration(
+            property_name=prop_name,
             values=(raw_val,),
             span=_span(d),
-        )
-        rules.append(RuleBlock(
-            selectors=selectors,
-            declarations=(decl,),
-            nested_blocks=(),
-            span=_span(d),
         ))
-    return rules
+
+    if not decls:
+        return []
+
+    selectors = _parse_sel("resource", source_path)
+    return [RuleBlock(
+        selectors=selectors,
+        declarations=tuple(decls),
+        nested_blocks=(),
+        span=_span(node),
+    )]
 
 
 # ---------------------------------------------------------------------------

@@ -77,8 +77,7 @@ def test_snapshot_auth_fix():
         {"editable": "false"},
     )
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "5m"})
+    rv.add("world", ResourceEntity(), {"memory": "512MB", "wall-time": "5m"})
 
     result = BwrapCompiler().compile_full(rv)
     expected_argv = _load_argv("auth-fix.argv")
@@ -109,7 +108,7 @@ def test_snapshot_readonly_exploration():
         {"editable": "false"},
     )
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+    rv.add("world", ResourceEntity(), {"wall-time": "60s"})
 
     result = BwrapCompiler().compile_full(rv)
     expected_argv = _load_argv("readonly-exploration.argv")

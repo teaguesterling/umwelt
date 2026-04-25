@@ -47,7 +47,7 @@ def test_runner_assembles_bwrap_argv_wrapper_command():
     """Verify the runner concatenates: bwrap ARGV -- WRAPPER COMMAND."""
     rv = ResolvedView()
     rv.add("world", MountEntity(path="/workspace/src"), {"source": "./src"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+    rv.add("world", ResourceEntity(), {"wall-time": "60s"})
 
     mock_result = MagicMock()
     mock_result.returncode = 0
