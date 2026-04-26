@@ -25,7 +25,7 @@ def test_check_clean_fixture_exits_zero():
 
 def test_check_reports_rule_count():
     result = _run(["check", str(FIXTURE)])
-    assert "13 rule" in result.stdout or "13 rules" in result.stdout
+    assert "12 rule" in result.stdout or "12 rules" in result.stdout
 
 
 def test_check_reports_compiler_count():

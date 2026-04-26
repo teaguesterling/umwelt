@@ -189,25 +189,26 @@ class PolicyEngine:
         type: str,
         id: str,
         property: str | None = None,
+        mode: str | None = None,
     ) -> str | dict[str, str] | None:
         from umwelt.policy.queries import resolve_entity
 
         con = self._ensure_compiled()
-        result = resolve_entity(con, type=type, id=id, property=property)
+        result = resolve_entity(con, type=type, id=id, property=property, mode=mode)
         logger.info(
             "resolve",
-            extra={"entity": f"{type}#{id}", "property": property, "value": result},
+            extra={"entity": f"{type}#{id}", "property": property, "mode": mode, "value": result},
         )
         return result
 
-    def resolve_all(self, *, type: str) -> list[dict]:
+    def resolve_all(self, *, type: str, mode: str | None = None) -> list[dict]:
         from umwelt.policy.queries import resolve_all_entities
 
         con = self._ensure_compiled()
-        results = resolve_all_entities(con, type=type)
+        results = resolve_all_entities(con, type=type, mode=mode)
         logger.info(
             "resolve_all",
-            extra={"type": type, "result_count": len(results)},
+            extra={"type": type, "mode": mode, "result_count": len(results)},
         )
         return results
 
@@ -217,16 +218,18 @@ class PolicyEngine:
         type: str,
         id: str,
         property: str,
+        mode: str | None = None,
     ) -> TraceResult:
         from umwelt.policy.queries import trace_entity
 
         con = self._ensure_compiled()
-        result = trace_entity(con, type=type, id=id, property=property)
+        result = trace_entity(con, type=type, id=id, property=property, mode=mode)
         logger.debug(
             "trace",
             extra={
                 "entity": f"{type}#{id}",
                 "property": property,
+                "mode": mode,
                 "candidates": len(result.candidates),
             },
         )
@@ -238,16 +241,16 @@ class PolicyEngine:
         con = self._ensure_compiled()
         return run_lint(con)
 
-    def check(self, *, type: str, id: str, **expected: str) -> bool:
+    def check(self, *, type: str, id: str, mode: str | None = None, **expected: str) -> bool:
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name)
+            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode)
             if actual != expected_val:
                 return False
         return True
 
-    def require(self, *, type: str, id: str, **expected: str) -> None:
+    def require(self, *, type: str, id: str, mode: str | None = None, **expected: str) -> None:
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name)
+            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode)
             if actual != expected_val:
                 logger.warning(
                     "require_denied",
@@ -443,8 +446,12 @@ class PolicyEngine:
 
 
 def _load_default_vocabulary() -> None:
-    try:
-        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-        register_sandbox_vocabulary()
-    except ImportError:
-        pass
+    from umwelt.registry.plugins import discover_plugins
+    loaded = discover_plugins()
+    # Fallback: if sandbox wasn't loaded via entry point, import directly.
+    if "sandbox" not in loaded:
+        try:
+            from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
+            register_sandbox_vocabulary()
+        except ImportError:
+            pass

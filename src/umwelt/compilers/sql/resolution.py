@@ -114,4 +114,21 @@ SELECT * FROM _resolved_exact
 {union_keyword} SELECT * FROM _resolved_cap
 {union_keyword} SELECT * FROM _resolved_pattern;"""
 
-    return "\n".join([exact_view, cap_view, pattern_view, resolved_view])
+    effective_view_prefix = "CREATE VIEW IF NOT EXISTS" if is_sqlite else "CREATE OR REPLACE VIEW"
+    effective_view = f"""
+{effective_view_prefix} effective_properties AS
+SELECT
+    rp.entity_id,
+    rp.property_name,
+    COALESCE(fc.property_value, rp.property_value) AS effective_value,
+    CASE WHEN fc.id IS NOT NULL THEN 'fixed' ELSE 'cascade' END AS source,
+    rp.specificity,
+    rp.rule_index,
+    rp.source_file,
+    rp.source_line
+FROM resolved_properties rp
+LEFT JOIN fixed_constraints fc
+    ON fc.entity_id = rp.entity_id
+    AND fc.property_name = rp.property_name;"""
+
+    return "\n".join([exact_view, cap_view, pattern_view, resolved_view, effective_view])

@@ -19,7 +19,7 @@ from umwelt.world.shorthands import get_shorthand
 
 _STRUCTURAL_KEYS = frozenset({"entities", "discover", "projections", "overrides", "fixed", "include", "exclude"})
 _RESERVED_KEYS = frozenset({"vars", "when", "version"})
-_PHASE2_KEYS = frozenset({"discover", "overrides", "fixed", "include", "exclude"})
+_PHASE2_KEYS = frozenset({"discover", "overrides", "include", "exclude"})
 
 
 def load_world(path: str | Path) -> WorldFile:
@@ -83,12 +83,14 @@ def load_world(path: str | Path) -> WorldFile:
                 discover_raw = tuple(data[key]) if isinstance(data[key], list) else ()
             elif key == "overrides":
                 overrides_raw = data[key] if isinstance(data[key], dict) else {}
-            elif key == "fixed":
-                fixed_raw = data[key] if isinstance(data[key], dict) else {}
             elif key == "include":
                 include_raw = tuple(str(x) for x in data[key]) if isinstance(data[key], list) else ()
             elif key == "exclude":
                 exclude_raw = tuple(str(x) for x in data[key]) if isinstance(data[key], list) else ()
+
+    # Fixed constraints are implemented — capture without warning
+    if "fixed" in data:
+        fixed_raw = data["fixed"] if isinstance(data["fixed"], dict) else {}
 
     # Warn on reserved and unknown keys
     known_keys = _STRUCTURAL_KEYS | _RESERVED_KEYS

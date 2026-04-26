@@ -50,14 +50,21 @@ class StateMatcher:
         return []
 
     def condition_met(self, selector: Any, context: Any = None) -> bool:
-        """Mode selectors are always active in v0.5; other state entities don't qualify.
+        """Check whether a mode qualifier is active.
 
-        v0.5: mode is a compositional class label. Cross-axis rules gated on
-        mode fire unconditionally at view-resolve time. Runtime class filtering
-        (only fire if the current mode matches) is a v0.6 concern coordinated
-        with kibitzer's ChangeToolMode.
+        When context contains {"active_mode": "<id>"}, only mode selectors
+        whose id matches (or bare mode selectors with no id) pass. Without
+        active_mode, all mode selectors pass unconditionally (v0.5 compat).
+        Non-mode state selectors never qualify.
         """
-        return getattr(selector, "type_name", None) == "mode"
+        if getattr(selector, "type_name", None) != "mode":
+            return False
+        if not isinstance(context, dict) or "active_mode" not in context:
+            return True
+        selector_id = getattr(selector, "id_value", None)
+        if selector_id is None:
+            return True
+        return selector_id == context["active_mode"]
 
     def get_attribute(self, entity: Any, name: str) -> Any:
         return getattr(entity, name, None)

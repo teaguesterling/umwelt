@@ -49,6 +49,9 @@ Homepage = "https://github.com/teaguesterling/umwelt"
 Source = "https://github.com/teaguesterling/umwelt"
 Issues = "https://github.com/teaguesterling/umwelt/issues"
 
+[project.entry-points."umwelt.plugins"]
+sandbox = "umwelt.sandbox.vocabulary:register_sandbox_vocabulary"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/umwelt"]
 

@@ -17,6 +17,7 @@ def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
     warnings.extend(_detect_conflicting_intent(con))
     warnings.extend(_detect_uncovered_entity(con))
     warnings.extend(_detect_specificity_escalation(con))
+    warnings.extend(_detect_fixed_override(con))
 
     for w in warnings:
         logger.warning(
@@ -188,6 +189,38 @@ def _detect_specificity_escalation(con: sqlite3.Connection) -> list[LintWarning]
                 entities=(entity_name,),
                 property=prop_name,
             ))
+    return warnings
+
+
+def _detect_fixed_override(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when a fixed constraint overrides a cascade-resolved value."""
+    warnings: list[LintWarning] = []
+
+    try:
+        rows = con.execute("""
+            SELECT fc.entity_id, fc.property_name, fc.property_value, fc.selector,
+                   rp.property_value AS cascade_value
+            FROM fixed_constraints fc
+            JOIN resolved_properties rp
+                ON fc.entity_id = rp.entity_id
+                AND fc.property_name = rp.property_name
+            WHERE fc.property_value != rp.property_value
+        """).fetchall()
+    except sqlite3.OperationalError:
+        return warnings
+
+    for entity_id, prop_name, fixed_val, selector, cascade_val in rows:
+        entity_name = _entity_name(con, entity_id)
+        warnings.append(LintWarning(
+            smell="fixed_override",
+            severity="info",
+            description=(
+                f"{entity_name} '{prop_name}': fixed constraint ({selector}) "
+                f"overrides cascade value '{cascade_val}' with '{fixed_val}'"
+            ),
+            entities=(entity_name,),
+            property=prop_name,
+        ))
     return warnings
 
 
