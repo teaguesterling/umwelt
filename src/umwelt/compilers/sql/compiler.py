@@ -169,6 +169,11 @@ def compile_view(
             spec_str = dialect.format_specificity(spec)
             src_line = rule.span.line if hasattr(rule, "span") else 0
             mode_qual = _extract_mode_qualifier(selector)
+            context_quals = _extract_context_qualifiers(selector)
+
+            max_before = con.execute(
+                "SELECT COALESCE(MAX(rowid), 0) FROM cascade_candidates"
+            ).fetchone()[0] if context_quals else 0
 
             for decl in rule.declarations:
                 comparison = _infer_comparison(decl.property_name)
@@ -182,8 +187,48 @@ def compile_view(
                     (decl.property_name, value, comparison,
                      spec_str, rule_idx, source_file, src_line, mode_qual),
                 )
+
+            if context_quals:
+                new_rows = con.execute(
+                    "SELECT rowid FROM cascade_candidates WHERE rowid > ?",
+                    (max_before,),
+                ).fetchall()
+                for (candidate_rowid,) in new_rows:
+                    for taxon, type_name, entity_id in context_quals:
+                        con.execute(
+                            "INSERT INTO cascade_context_qualifiers "
+                            "(candidate_rowid, taxon, type_name, entity_id) "
+                            "VALUES (?, ?, ?, ?)",
+                            (candidate_rowid, taxon, type_name, entity_id),
+                        )
     con.commit()
     create_resolution_views(con, dialect)
+
+
+def _extract_context_qualifiers(
+    selector: ComplexSelector,
+) -> list[tuple[str, str, str]]:
+    """Extract (taxon, type_name, entity_id) for all cross-taxon context qualifier parts.
+
+    Context qualifiers are the non-target (prefix) parts of a compound selector
+    that belong to a different taxon than the target. These are the gating entities
+    (e.g., mode#review, principal#Teague) that scope a rule's applicability.
+    """
+    if not selector.parts:
+        return []
+    target_taxon = selector.parts[-1].selector.taxon
+    qualifiers = []
+    for part in selector.parts[:-1]:
+        if (
+            part.selector.taxon != target_taxon
+            and part.selector.id_value is not None
+        ):
+            qualifiers.append((
+                part.selector.taxon,
+                part.selector.type_name,
+                part.selector.id_value,
+            ))
+    return qualifiers
 
 
 def _extract_mode_qualifier(selector: ComplexSelector) -> str | None:
