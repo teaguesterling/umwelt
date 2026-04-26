@@ -69,13 +69,19 @@ Something a Layer-2 observer reported (e.g. from `blq`, `ratchet-detect`, `strac
 | Property | Type | Comparison | Description |
 |---|---|---|---|
 | `enabled` | bool | exact | Whether this observation source is active |
+| `type` | str | exact | Event category: `tool_call`, `build_run`, `failure`, etc. |
+| `timestamp` | str | exact | ISO 8601 timestamp |
+| `session_id` | str | exact | Claude Code session ID |
+| `severity` | str | exact | `info`, `warning`, `error`, `critical` |
+| `tags` | str | exact | Classification tags: `repeated_pattern`, `permission_denial`, etc. |
+| `payload` | str | exact | JSON blob with tool-specific structure |
 
 **Selector examples:**
 ```css
 @audit {
   observation#coach    { source: "kibitzer"; enabled: true; }
   observation#ratchet  { source: "ratchet-detect"; enabled: true; }
-}
+  observation          { type: "tool_call"; severity: "info"; }
 ```
 
 ---

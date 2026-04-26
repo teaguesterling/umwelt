@@ -99,7 +99,7 @@ Core umwelt is vocabulary-agnostic. It provides:
 - **Registry** — `register_taxon`, `register_entity`, `register_property`, `register_matcher`, `register_validator`, `register_compiler`. Consumers call these at import time.
 - **Selector engine** — evaluates selectors against registered matchers. Handles structural descent (within-taxon), context qualification (cross-taxon), and specificity computation.
 - **Cascade resolver** — per-taxon property-level cascade with CSS3 specificity + document order.
-- **Compiler protocol** — pure `compile(resolved_view) → target_format` with altitude declaration.
+- **Compiler protocol** — pure `compile(resolved_view, **options) → target_format` with altitude declaration. Callers pass context (e.g. `workspace_root`, `mode`) as keyword arguments; compilers accept what they need via `**kwargs`.
 
 Core knows nothing about files, tools, or networks. All entity types come from consumers via the registry. The sandbox consumer (shipped in the same package) registers the world/capability/state taxa. Third-party consumers register their own.
 

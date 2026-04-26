@@ -14,9 +14,14 @@ project follows semantic versioning.
 - **Fixed constraints** — post-cascade clamping for safety-critical properties. `fixed_raw` in world files maps selectors to property values that override cascade results. `fixed_constraints` table and `effective_properties` view in SQL schema.
 - **CompositeMatcher** — multiple matchers per taxon via `CompositeMatcher` wrapper. Enables plugin coexistence where two plugins register matchers for the same taxon.
 - **Plugin autodiscovery** — `umwelt.plugins` entry point group. Third-party packages register plugins via `pyproject.toml` entry points; `umwelt.registry.plugins.discover_plugins()` loads them at startup.
+- **Cross-taxon validators** — `CrossTaxonValidatorProtocol` for pre-compilation invariant checks that span taxa. Dispatched after per-taxon validators, receiving the full `View` AST.
+- **World file composition** — `require:` activates named collections, `include:` loads entities from other world files (with cycle detection), `exclude:` removes entities by type or `type#id` selector. Merge order: collection → included → shorthand → explicit → exclude.
+- **Shared event schema** — six new properties on `audit/observation`: `type`, `timestamp`, `session_id`, `severity`, `tags`, `payload`. Common vocabulary for tool observation events across consumer plugins.
+- **Compiler `**options`** — `Compiler.compile()` now explicitly accepts `**options` for caller context (`workspace_root`, `mode`, etc.). Backward compatible with existing compilers.
+- **Altitude filtering** — `PropertySchema.altitude` field, `_ALTITUDE_RANK` ordering (`os` < `language` < `semantic` < `conversational`), `_filter_by_altitude()` pre-filters `ResolvedView` before passing to compilers. Linter warns on unrealizable altitude properties.
 - **MCP-projected tool attributes** — `param-count` and `output-type` attributes on the `tool` entity type, populated by future MCP generator plugins.
 - **Plugin guide documentation** — `docs/guide/plugins.md` (586 lines), `docs/guide/policy-engine.md` (456 lines), `docs/guide/world-files.md` (363 lines).
-- 200+ new tests (832 total). `tests/policy/test_mode_filtering.py` (20 tests), `tests/sandbox/test_active_mode.py` (12 tests).
+- 850+ tests (up from 630 in v0.5).
 
 ### Changed
 - `populate_from_world` now always includes entity `id` as a `name` attribute in the JSON column, matching matcher-discovered entity behavior. Fixes `tool[name="Read"]` selectors in the SQL path.

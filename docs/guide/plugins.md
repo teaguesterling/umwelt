@@ -548,7 +548,23 @@ def lint_bash_requires_wall_time(engine: PolicyEngine) -> list[LintWarning]:
     return []
 ```
 
-Custom lint rules run after compilation and can query any entity type. This avoids adding a cross-taxon validator protocol — the PolicyEngine query API is already the cross-taxon interface.
+Custom lint rules run after compilation and can query any entity type.
+
+For invariants that must be checked at parse time (before compilation), umwelt also provides a cross-taxon validator protocol:
+
+```python
+from umwelt.registry import register_cross_taxon_validator
+
+class BashRequiresWallTime:
+    def validate(self, view):
+        """Receive the full View AST and raise on violations."""
+        # Check across taxa before compilation
+        ...
+
+register_cross_taxon_validator(BashRequiresWallTime())
+```
+
+Cross-taxon validators run after all per-taxon validators, receiving the complete `View`. They are dispatched in registration order. Use lint rules (post-compilation) when you need resolved values; use cross-taxon validators (pre-compilation) when you need to reject structurally invalid stylesheets early.
 
 ## Plugin discovery (future)
 
