@@ -6,6 +6,28 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-04-26
+
+### Added
+- **Resource block model** — single `resource` entity with properties (`memory`, `wall-time`, `cpu-time`, `tmpfs`) replaces per-resource singletons (`MemoryEntity`, `WallTimeEntity`, etc.). CSS selectors now use `resource { memory: 512MB; }` instead of `memory { limit: 512MB; }`.
+- **Mode filtering** — `mode#review tool { allow: false }` gates rules by active mode. Both in-memory cascade resolver (`StateMatcher.condition_met()` with `active_mode` context) and SQL PolicyEngine (`mode` parameter on `resolve`/`resolve_all`/`trace`/`check`/`require`). Unscoped rules always apply; mode-gated rules only fire when that mode is active. `mode_qualifier` column on `cascade_candidates` table.
+- **Fixed constraints** — post-cascade clamping for safety-critical properties. `fixed_raw` in world files maps selectors to property values that override cascade results. `fixed_constraints` table and `effective_properties` view in SQL schema.
+- **CompositeMatcher** — multiple matchers per taxon via `CompositeMatcher` wrapper. Enables plugin coexistence where two plugins register matchers for the same taxon.
+- **Plugin autodiscovery** — `umwelt.plugins` entry point group. Third-party packages register plugins via `pyproject.toml` entry points; `umwelt.registry.plugins.discover_plugins()` loads them at startup.
+- **MCP-projected tool attributes** — `param-count` and `output-type` attributes on the `tool` entity type, populated by future MCP generator plugins.
+- **Plugin guide documentation** — `docs/guide/plugins.md` (586 lines), `docs/guide/policy-engine.md` (456 lines), `docs/guide/world-files.md` (363 lines).
+- 200+ new tests (832 total). `tests/policy/test_mode_filtering.py` (20 tests), `tests/sandbox/test_active_mode.py` (12 tests).
+
+### Changed
+- `populate_from_world` now always includes entity `id` as a `name` attribute in the JSON column, matching matcher-discovered entity behavior. Fixes `tool[name="Read"]` selectors in the SQL path.
+- PolicyEngine `resolve`, `resolve_all`, `trace`, `check`, `require` methods accept optional `mode` parameter.
+- Sandbox compilers (nsjail, bwrap) updated to read resource properties from block entity instead of individual resource entities.
+- `@budget` at-rule desugars to `resource { ... }` instead of individual `memory { limit: ... }` / `wall-time { limit: ... }` rules.
+
+### Fixed
+- Mode-filtered queries now respect fixed constraints (post-cascade clamping applied after mode-filtered resolution).
+- Projection entities now get `name` attribute fallback, consistent with declared entities.
+
 ## [0.5.2] — 2026-04-16
 
 ### Added
@@ -244,5 +266,13 @@ engine, cascade resolver, compiler protocol, and CLI.
 - `source` / `project` entity — v1.1+.
 - View bank and git-history distillation — v2.
 
-[Unreleased]: https://github.com/teaguesterling/umwelt/compare/v0.1.0-core...HEAD
+[Unreleased]: https://github.com/teaguesterling/umwelt/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/teaguesterling/umwelt/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/teaguesterling/umwelt/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/teaguesterling/umwelt/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/teaguesterling/umwelt/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/teaguesterling/umwelt/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/teaguesterling/umwelt/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/teaguesterling/umwelt/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/teaguesterling/umwelt/compare/v0.1.0-core...v0.1.0
 [0.1.0-core]: https://github.com/teaguesterling/umwelt/releases/tag/v0.1.0-core
