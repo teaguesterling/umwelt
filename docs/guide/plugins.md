@@ -566,9 +566,9 @@ register_cross_taxon_validator(BashRequiresWallTime())
 
 Cross-taxon validators run after all per-taxon validators, receiving the complete `View`. They are dispatched in registration order. Use lint rules (post-compilation) when you need resolved values; use cross-taxon validators (pre-compilation) when you need to reject structurally invalid stylesheets early.
 
-## Plugin discovery (future)
+## Plugin discovery
 
-Currently, plugins must be explicitly imported and their `register_*()` functions called. For systems where many plugins coexist, a future version will support `entry_points`-based autodiscovery:
+Plugins can be discovered automatically via Python entry points. Register your plugin in `pyproject.toml`:
 
 ```toml
 # In a plugin's pyproject.toml
@@ -577,7 +577,16 @@ blq = "blq.umwelt_plugin:register"
 kibitzer = "kibitzer.umwelt_plugin:register"
 ```
 
-Until then, the recommended pattern is a single orchestration function that imports and registers all plugins needed for a given deployment.
+Then call `discover_plugins()` to load all registered plugins:
+
+```python
+from umwelt.registry.plugins import discover_plugins
+
+loaded = discover_plugins()
+# Returns list of plugin names that were successfully loaded
+```
+
+Each entry point should reference a callable that registers the plugin's taxa, entities, matchers, and compilers when called. Plugins can also be loaded explicitly by importing and calling their registration functions directly.
 
 ## Design principles for plugin authors
 

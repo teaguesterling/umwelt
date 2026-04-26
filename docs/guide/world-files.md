@@ -339,17 +339,39 @@ entities:
 
 This produces a warning (not an error): `unknown entity type 'frobnitz' (not in registered vocabulary)`. Unknown types are allowed for forward compatibility — you can declare entities for vocabulary that hasn't been registered yet.
 
+## Composition keys
+
+World files support composition via `require:`, `include:`, and `exclude:`:
+
+| Key | Purpose |
+|---|---|
+| `require:` | Require other world files (error if missing) |
+| `include:` | Include entities from other world files |
+| `exclude:` | Exclude entities by `(type, id)` from included files |
+| `fixed:` | Immutable constraints — post-cascade clamping for safety-critical properties |
+
+### Fixed constraints
+
+The `fixed:` key maps selectors to property values that override cascade results:
+
+```yaml
+fixed:
+  tool#Bash:
+    allow: "false"
+  resource:
+    max-memory: "256MB"
+```
+
+Fixed constraints are applied after cascade resolution, regardless of mode. They cannot be overridden by any stylesheet rule.
+
 ## Future keys
 
 Some keys are parsed and stored but produce warnings because they aren't implemented yet:
 
 | Key | Status | Purpose |
 |---|---|---|
-| `discover:` | Phase 2 | Filesystem/runtime entity discovery |
-| `overrides:` | Phase 2 | Per-environment overrides |
-| `fixed:` | Phase 2 | Immutable constraints |
-| `include:` | Phase 2 | Include other world files |
-| `exclude:` | Phase 2 | Exclude entities from included files |
+| `discover:` | Planned | Filesystem/runtime entity discovery |
+| `overrides:` | Planned | Per-environment overrides |
 | `vars:` | Reserved | Template variables |
 | `when:` | Reserved | Conditional blocks |
 | `version:` | Reserved | Schema versioning |
