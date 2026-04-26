@@ -498,7 +498,7 @@ Three axes → `axis_count=3` → these rules beat any two-axis overlap.
 
 ## state taxon
 
-**What it models:** what the Harness tracks across turns — hooks, jobs, budgets.
+**What it models:** what the Harness tracks across turns — hooks, jobs, budgets, modes.
 **Ma concept:** observation layer.
 
 ### `hook` — lifecycle hook
@@ -563,6 +563,37 @@ A budget the job consumes.
 ```css
 budget[kind="wall-time"] { limit: 5m; }
 budget[kind="tokens"]    { limit: 100000; }
+```
+
+---
+
+### `mode` — regulation mode (v0.5.2+)
+
+A named regulation mode. Modes are the state-axis mechanism for context-dependent policy: rules qualified by `mode#review` only fire when that mode is active.
+
+Modes are authored as ID selectors (`mode#implement`, `mode#review`), not as categories. Classes remain for mode sub-categories: `mode#review.read-only`, `mode#implement.destructive`. ID selectors ensure mode-qualified rules dominate in the axis-count-first specificity model.
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `name` | str | | Mode ID (used as `#id` in selectors) |
+
+Modes carry no properties of their own — they function as context qualifiers on cross-axis rules. The mode's effect comes from mode-gated rules on other entities:
+
+```css
+/* Mode-gated tool surface */
+mode#review tool              { allow: false; }
+mode#review tool[name="Read"] { allow: true; }
+
+/* Mode-gated file editability */
+mode#implement file           { editable: true; }
+mode#review file              { editable: false; }
+```
+
+**Runtime activation:** Pass `mode="review"` to `PolicyEngine.resolve()`, `check()`, `require()`, etc. Unscoped rules always apply; mode-gated rules only fire when the named mode is active. See [Mode-gated tool surface](#mode-gated-tool-surface) in the cross-axis idioms section.
+
+**World file declaration:**
+```yaml
+modes: [implement, review, test, explore]
 ```
 
 ---

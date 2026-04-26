@@ -40,6 +40,14 @@ umwelt parses this, builds a virtual workspace from it, and translates it into w
 
     The entity model, plugin architecture, pivots between world models, and the ecosystem linker role.
 
+- :material-format-list-bulleted: **[Entity Reference](guide/entity-reference.md)**
+
+    Every registered entity type, attribute, property, and selector pattern — the authoritative vocabulary.
+
+- :material-database: **[SQL Integration](guide/sql-integration.md)**
+
+    Query the compiled SQLite database directly — tables, views, and raw SQL for advanced consumers.
+
 - :material-github: **[GitHub](https://github.com/teaguesterling/umwelt)**
 
     Source code, issues, and the full README with install instructions.
