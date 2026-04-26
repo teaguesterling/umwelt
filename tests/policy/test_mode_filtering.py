@@ -155,3 +155,56 @@ class TestModeQualifierStorage:
         assert "implement" in qualifiers
         assert "review" in qualifiers
         assert "explore" in qualifiers
+
+
+class TestContextEquivalence:
+    """Every mode= test has an equivalent context= form that produces the same result."""
+
+    def test_matching_mode_fires_via_context(self, mode_engine):
+        val = mode_engine.resolve(
+            type="tool", id="Bash", property="max-level",
+            context={"mode": "implement"},
+        )
+        assert val == "3"
+
+    def test_review_denies_via_context(self, mode_engine):
+        val = mode_engine.resolve(
+            type="tool", id="Bash", property="allow",
+            context={"mode": "review"},
+        )
+        assert val == "false"
+
+    def test_review_allows_read_via_context(self, mode_engine):
+        val = mode_engine.resolve(
+            type="tool", id="Read", property="allow",
+            context={"mode": "review"},
+        )
+        assert val == "true"
+
+    def test_resolve_all_via_context(self, mode_engine):
+        tools = mode_engine.resolve_all(
+            type="tool", context={"mode": "review"},
+        )
+        bash = next(t for t in tools if t["entity_id"] == "Bash")
+        assert bash["properties"]["allow"] == "false"
+
+    def test_trace_via_context(self, mode_engine):
+        result = mode_engine.trace(
+            type="tool", id="Bash", property="max-level",
+            context={"mode": "implement"},
+        )
+        assert result.value == "3"
+
+    def test_check_via_context(self, mode_engine):
+        assert mode_engine.check(
+            type="tool", id="Bash",
+            context={"mode": "review"},
+            allow="false",
+        )
+
+    def test_require_via_context(self, mode_engine):
+        mode_engine.require(
+            type="tool", id="Read",
+            context={"mode": "review"},
+            allow="true",
+        )
