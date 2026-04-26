@@ -18,6 +18,7 @@ EXPECTED_TABLES = [
     "entities",
     "entity_closure",
     "cascade_candidates",
+    "cascade_context_qualifiers",
     "fixed_constraints",
 ]
 
@@ -110,6 +111,18 @@ CREATE TABLE IF NOT EXISTS cascade_candidates (
 
 CREATE INDEX IF NOT EXISTS idx_candidates_entity_prop ON cascade_candidates(entity_id, property_name);
 CREATE INDEX IF NOT EXISTS idx_candidates_comparison ON cascade_candidates(comparison);""")
+
+    # -- Context qualifiers (normalized from cascade_candidates)
+    sections.append(f"""
+CREATE TABLE IF NOT EXISTS cascade_context_qualifiers (
+    candidate_rowid {int_type} NOT NULL,
+    taxon           {text_type} NOT NULL,
+    type_name       {text_type} NOT NULL,
+    entity_id       {text_type} NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ccq_candidate ON cascade_context_qualifiers(candidate_rowid);
+CREATE INDEX IF NOT EXISTS idx_ccq_lookup ON cascade_context_qualifiers(taxon, type_name, entity_id);""")
 
     # -- Fixed constraints (post-cascade overrides)
     sections.append(f"""
