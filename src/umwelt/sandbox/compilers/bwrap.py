@@ -2,7 +2,7 @@
 
 The compiler reads OS-altitude constructs from the resolved view and emits
 a flat list of bwrap command-line flags. Budget enforcement that bwrap
-can't express natively (memory, cpu-time, max-fds) goes into a separate
+can't express natively (memory, cpu, max-fds) goes into a separate
 wrapper command list (prlimit/timeout).
 
 Ordering per bwrap spec:
