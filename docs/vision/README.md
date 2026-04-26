@@ -142,7 +142,7 @@ privileged; all are regular consumers of the common-language contract.
 
 PolicyEngine replaces the separate ducklog package for consumers like Kibitzer and Lackpy — they query resolved policy via `engine.resolve()` instead of raw SQL. See [`docs/superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) for the full design spec.
 
-854 tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
+885 tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
 
 ## Document map
 

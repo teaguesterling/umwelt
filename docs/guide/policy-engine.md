@@ -75,7 +75,33 @@ Compilation is lazy — the engine compiles on first query, not on construction.
 
 ## Query methods
 
-> **Note on `mode` parameter:** The `resolve`, `resolve_all`, `trace`, `check`, and `require` methods accept an optional `mode` keyword for runtime mode filtering. This is currently special-cased to the `mode` entity type and will be replaced by a generic context-qualifier mechanism before 1.0. See the [mode entity deprecation notice](entity-reference.md#mode--regulation-mode-v052).
+### Context-filtered resolution
+
+All query methods accept an optional `context` parameter to filter rules by active context qualifiers. Context qualifiers are the gating entities in cross-axis selectors — e.g., `mode#review` in `mode#review tool { allow: false; }`.
+
+```python
+# Filter by mode
+engine.resolve(type="tool", id="Bash", property="allow", context={"mode": "review"})
+# → "false" (mode#review rule fires)
+
+# Filter by multiple qualifiers
+engine.resolve(
+    type="tool", id="Bash", property="allow",
+    context=[("state", "mode", "review"), ("principal", "principal", "Teague")],
+)
+
+# Without context, all rules compete (unfiltered cascade)
+engine.resolve(type="tool", id="Bash", property="allow")
+```
+
+The `context` parameter accepts either:
+
+- **dict** — `{"mode": "review"}` shorthand (type name → entity id, taxon resolved from registry)
+- **list of tuples** — `[("state", "mode", "review")]` explicit (taxon, type_name, entity_id)
+
+Unscoped rules (no context qualifier in the selector) always apply regardless of context. Rules with qualifiers only fire when all their qualifiers are present in the active context.
+
+> **Deprecated:** The `mode=` parameter still works but emits a `DeprecationWarning`. Use `context={"mode": value}` instead.
 
 ### resolve — what does the policy say?
 

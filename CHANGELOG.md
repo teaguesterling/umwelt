@@ -6,6 +6,19 @@ project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-04-26
+
+### Added
+- **Generic context qualifiers** — cross-axis selectors (e.g., `mode#review`, `principal#Teague`) now store their gating entities in a normalized `cascade_context_qualifiers` table. The `context=` parameter on `resolve`/`resolve_all`/`trace`/`check`/`require` filters rules by any combination of context qualifiers, not just mode. Accepts dict shorthand (`context={"mode": "review"}`) or explicit tuples (`context=[("state", "mode", "review")]`).
+- 885 tests (up from 854 in v0.6.0).
+
+### Deprecated
+- `mode=` parameter on PolicyEngine query methods. Use `context={"mode": value}` instead. Emits `DeprecationWarning`.
+
+### Changed
+- Removed dead mode-specific SQL templates and `_resolve_with_mode` from query layer. All context-filtered resolution uses the generic `_resolve_with_context` path.
+- Query functions (`resolve_entity`, `resolve_all_entities`, `trace_entity`) no longer accept `mode` parameter — the engine converts `mode` to `context` before calling queries.
+
 ## [0.6.0] — 2026-04-26
 
 ### Added
@@ -271,7 +284,8 @@ engine, cascade resolver, compiler protocol, and CLI.
 - `source` / `project` entity — v1.1+.
 - View bank and git-history distillation — v2.
 
-[Unreleased]: https://github.com/teaguesterling/umwelt/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/teaguesterling/umwelt/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/teaguesterling/umwelt/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/teaguesterling/umwelt/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/teaguesterling/umwelt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/teaguesterling/umwelt/compare/v0.5.0...v0.5.1

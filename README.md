@@ -148,7 +148,7 @@ See [How umwelt Works](docs/guide/how-it-works.md) for the full architectural pi
 - **Altitude filtering** — compilers receive only properties at their enforcement altitude
 - **Compiler `**options`** — `compile()` accepts caller context (`workspace_root`, `mode`, etc.)
 - **Shared event schema** — common observation properties for audit/monitoring plugins
-- **854 tests**, mypy strict, ruff clean
+- **885 tests**, mypy strict, ruff clean
 
 ## The ecosystem
 
@@ -171,7 +171,7 @@ The theoretical foundation is in [The Ma of Multi-Agent Systems](https://judgeme
 
 ```bash
 pip install -e ".[dev]"
-pytest -q              # 854 tests
+pytest -q              # 885 tests
 ruff check src/ tests/ # lint
 mypy src/              # type check (strict)
 ```
