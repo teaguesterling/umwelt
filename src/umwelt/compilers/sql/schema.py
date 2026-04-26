@@ -104,7 +104,8 @@ CREATE TABLE IF NOT EXISTS cascade_candidates (
     specificity     {text_type} NOT NULL,
     rule_index      {int_type} NOT NULL,
     source_file     {text_type},
-    source_line     {int_type}
+    source_line     {int_type},
+    mode_qualifier  {text_type}
 );
 
 CREATE INDEX IF NOT EXISTS idx_candidates_entity_prop ON cascade_candidates(entity_id, property_name);

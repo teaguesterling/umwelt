@@ -161,7 +161,10 @@ def populate_from_world(con: Any, world: Any) -> None:
 
 def _upsert_declared_entity(con: Any, entity: Any) -> None:
     classes_json = json.dumps(list(entity.classes)) if entity.classes else None
-    attrs_json = json.dumps(entity.attributes) if entity.attributes else None
+    attrs = dict(entity.attributes) if entity.attributes else {}
+    if "name" not in attrs:
+        attrs["name"] = entity.id
+    attrs_json = json.dumps(attrs)
 
     existing = con.execute(
         "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",

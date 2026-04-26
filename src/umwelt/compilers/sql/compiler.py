@@ -168,6 +168,7 @@ def compile_view(
             spec = selector.specificity if hasattr(selector, "specificity") else (0,) * 8
             spec_str = dialect.format_specificity(spec)
             src_line = rule.span.line if hasattr(rule, "span") else 0
+            mode_qual = _extract_mode_qualifier(selector)
 
             for decl in rule.declarations:
                 comparison = _infer_comparison(decl.property_name)
@@ -175,14 +176,26 @@ def compile_view(
                 con.execute(
                     "INSERT INTO cascade_candidates "
                     "(entity_id, property_name, property_value, comparison, "
-                    "specificity, rule_index, source_file, source_line) "
-                    f"SELECT e.id, ?, ?, ?, ?, ?, ?, ? "
+                    "specificity, rule_index, source_file, source_line, mode_qualifier) "
+                    f"SELECT e.id, ?, ?, ?, ?, ?, ?, ?, ? "
                     f"FROM entities e WHERE {where_sql}",
                     (decl.property_name, value, comparison,
-                     spec_str, rule_idx, source_file, src_line),
+                     spec_str, rule_idx, source_file, src_line, mode_qual),
                 )
     con.commit()
     create_resolution_views(con, dialect)
+
+
+def _extract_mode_qualifier(selector: ComplexSelector) -> str | None:
+    """Extract the mode id from a cross-axis mode qualifier, if present."""
+    for part in selector.parts:
+        if (
+            part.selector.type_name == "mode"
+            and part.selector.taxon != selector.target_taxon
+            and part.selector.id_value is not None
+        ):
+            return part.selector.id_value
+    return None
 
 
 def _infer_comparison(property_name: str) -> str:
