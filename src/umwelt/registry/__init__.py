@@ -36,6 +36,11 @@ from umwelt.registry.taxa import (
     registry_scope,
     resolve_taxon,
 )
+from umwelt.registry.collections import (
+    get_collection_entities,
+    register_collection,
+    require_collection,
+)
 from umwelt.registry.plugins import discover_plugins
 from umwelt.registry.validators import (
     CrossTaxonValidatorProtocol,
@@ -57,6 +62,7 @@ __all__ = [
     "RegistryState",
     "TaxonSchema",
     "ValidatorProtocol",
+    "get_collection_entities",
     "get_cross_taxon_validators",
     "get_entity",
     "get_matcher",
@@ -66,6 +72,7 @@ __all__ = [
     "list_entities",
     "list_properties",
     "list_taxa",
+    "register_collection",
     "register_cross_taxon_validator",
     "register_entity",
     "register_matcher",
@@ -73,6 +80,7 @@ __all__ = [
     "register_taxon",
     "register_taxon_alias",
     "register_validator",
+    "require_collection",
     "registry_scope",
     "resolve_entity_type",
     "resolve_taxon",

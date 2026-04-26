@@ -49,6 +49,9 @@ class RegistryState:
     # Keyed by shorthand key (e.g. "tools"). Values are ShorthandDef instances;
     # typed as Any to avoid a circular import with umwelt.world.shorthands.
     shorthands: dict[str, Any] = field(default_factory=dict)
+    collections: dict[str, Any] = field(default_factory=dict)
+    collection_entities: list[Any] = field(default_factory=list)
+    required_collections: set[str] = field(default_factory=set)
 
 
 _GLOBAL_STATE = RegistryState()

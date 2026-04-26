@@ -2,7 +2,8 @@
 
 Reads a world file, expands shorthand keys into ``DeclaredEntity`` instances,
 merges shorthand-derived entities with explicit ``entities:`` block entries
-(explicit wins on ``(type, id)`` collision), and stashes Phase 2-3 keys with
+(explicit wins on ``(type, id)`` collision), processes ``require``, ``include``,
+and ``exclude`` composition directives, and stashes Phase 2-3 keys with
 warnings.
 """
 
@@ -17,19 +18,25 @@ from umwelt.errors import WorldParseError
 from umwelt.world.model import DeclaredEntity, Projection, Provenance, WorldFile, WorldWarning
 from umwelt.world.shorthands import get_shorthand
 
-_STRUCTURAL_KEYS = frozenset({"entities", "discover", "projections", "overrides", "fixed", "include", "exclude"})
+_STRUCTURAL_KEYS = frozenset({
+    "entities", "discover", "projections", "overrides", "fixed",
+    "include", "exclude", "require",
+})
 _RESERVED_KEYS = frozenset({"vars", "when", "version"})
-_PHASE2_KEYS = frozenset({"discover", "overrides", "include", "exclude"})
+_PHASE2_KEYS = frozenset({"discover", "overrides"})
 
 
-def load_world(path: str | Path) -> WorldFile:
+def load_world(path: str | Path, *, _seen: frozenset[str] | None = None) -> WorldFile:
     """Parse a .world.yml file and return a :class:`WorldFile`.
 
     Raises:
         FileNotFoundError: if *path* does not exist.
         WorldParseError: if the file has structural problems.
     """
-    path = Path(path)
+    path = Path(path).resolve()
+    if _seen is None:
+        _seen = frozenset()
+
     text = path.read_text()  # raises FileNotFoundError naturally
     try:
         data = yaml.safe_load(text)
@@ -40,11 +47,31 @@ def load_world(path: str | Path) -> WorldFile:
 
     warnings: list[WorldWarning] = []
 
-    # Expand shorthands first
+    # 1. require: collections (idempotent)
+    require_raw: tuple[str, ...] = ()
+    if "require" in data:
+        raw = data["require"]
+        if isinstance(raw, list):
+            require_raw = tuple(str(x) for x in raw)
+            _process_requires(require_raw, warnings)
+
+    # 2. include: files (ordered)
+    include_raw: tuple[str, ...] = ()
+    included_entities: list[DeclaredEntity] = []
+    if "include" in data:
+        raw = data["include"]
+        if isinstance(raw, list):
+            include_raw = tuple(str(x) for x in raw)
+            included_entities, inc_warnings = _process_includes(
+                include_raw, path.parent, _seen | {str(path)}
+            )
+            warnings.extend(inc_warnings)
+
+    # 3. Expand shorthands
     shorthand_entities, sh_warnings = _expand_shorthands(data)
     warnings.extend(sh_warnings)
 
-    # Parse explicit entities block
+    # 4. Parse explicit entities
     explicit_entities: list[DeclaredEntity] = []
     if "entities" in data:
         raw = data["entities"]
@@ -52,12 +79,26 @@ def load_world(path: str | Path) -> WorldFile:
             for item in raw:
                 explicit_entities.append(_parse_entity_dict(item))
 
-    # Merge: shorthand first, explicit overwrites on (type, id) collision
+    # 5. Merge: collection -> included -> shorthand -> explicit (later wins)
+    from umwelt.registry.collections import get_collection_entities
+
     merged: dict[tuple[str, str], DeclaredEntity] = {}
+    for e in get_collection_entities():
+        merged[(e.type, e.id)] = e
+    for e in included_entities:
+        merged[(e.type, e.id)] = e
     for e in shorthand_entities:
         merged[(e.type, e.id)] = e
     for e in explicit_entities:
         merged[(e.type, e.id)] = e
+
+    # 6. exclude: removals last
+    exclude_raw: tuple[str, ...] = ()
+    if "exclude" in data:
+        raw = data["exclude"]
+        if isinstance(raw, list):
+            exclude_raw = tuple(str(x) for x in raw)
+            merged = _apply_excludes(merged, exclude_raw, warnings)
 
     # Parse projections block
     projections: list[Projection] = []
@@ -66,12 +107,10 @@ def load_world(path: str | Path) -> WorldFile:
         if isinstance(raw, list):
             projections = _parse_projections(raw)
 
-    # Handle Phase 2-3 keys: stash raw values + emit warnings
+    # Phase 2-3 stubs
     discover_raw: tuple[dict[str, Any], ...] = ()
     overrides_raw: dict[str, Any] = {}
     fixed_raw: dict[str, Any] = {}
-    include_raw: tuple[str, ...] = ()
-    exclude_raw: tuple[str, ...] = ()
 
     for key in _PHASE2_KEYS:
         if key in data:
@@ -83,12 +122,8 @@ def load_world(path: str | Path) -> WorldFile:
                 discover_raw = tuple(data[key]) if isinstance(data[key], list) else ()
             elif key == "overrides":
                 overrides_raw = data[key] if isinstance(data[key], dict) else {}
-            elif key == "include":
-                include_raw = tuple(str(x) for x in data[key]) if isinstance(data[key], list) else ()
-            elif key == "exclude":
-                exclude_raw = tuple(str(x) for x in data[key]) if isinstance(data[key], list) else ()
 
-    # Fixed constraints are implemented — capture without warning
+    # Fixed constraints are implemented -- capture without warning
     if "fixed" in data:
         fixed_raw = data["fixed"] if isinstance(data["fixed"], dict) else {}
 
@@ -110,7 +145,78 @@ def load_world(path: str | Path) -> WorldFile:
         fixed_raw=fixed_raw,
         include_raw=include_raw,
         exclude_raw=exclude_raw,
+        require_raw=require_raw,
     )
+
+
+def _process_requires(
+    names: tuple[str, ...],
+    warnings: list[WorldWarning],
+) -> None:
+    from umwelt.registry.collections import require_collection
+
+    for name in names:
+        try:
+            require_collection(name)
+        except KeyError:
+            warnings.append(WorldWarning(
+                message=f"unknown collection '{name}'", key="require",
+            ))
+
+
+def _process_includes(
+    paths: tuple[str, ...],
+    base_dir: Path,
+    seen: frozenset[str],
+) -> tuple[list[DeclaredEntity], list[WorldWarning]]:
+    entities: list[DeclaredEntity] = []
+    warnings: list[WorldWarning] = []
+    for rel_path in paths:
+        abs_path = (base_dir / rel_path).resolve()
+        if str(abs_path) in seen:
+            warnings.append(WorldWarning(
+                message=f"skipping circular include: {rel_path}", key="include",
+            ))
+            continue
+        try:
+            included = load_world(abs_path, _seen=seen)
+            for e in included.entities:
+                entities.append(DeclaredEntity(
+                    type=e.type,
+                    id=e.id,
+                    classes=e.classes,
+                    attributes=e.attributes,
+                    parent=e.parent,
+                    provenance=Provenance.INCLUDED,
+                ))
+            warnings.extend(included.warnings)
+        except FileNotFoundError:
+            warnings.append(WorldWarning(
+                message=f"included file not found: {rel_path}", key="include",
+            ))
+    return entities, warnings
+
+
+def _apply_excludes(
+    merged: dict[tuple[str, str], DeclaredEntity],
+    selectors: tuple[str, ...],
+    warnings: list[WorldWarning],
+) -> dict[tuple[str, str], DeclaredEntity]:
+    for sel_str in selectors:
+        if "[" in sel_str:
+            warnings.append(WorldWarning(
+                message=f"attribute selectors in exclude not yet supported: {sel_str}",
+                key="exclude",
+            ))
+            continue
+        if "#" in sel_str:
+            type_name, entity_id = sel_str.split("#", 1)
+            merged.pop((type_name, entity_id), None)
+        else:
+            to_remove = [k for k in merged if k[0] == sel_str]
+            for k in to_remove:
+                del merged[k]
+    return merged
 
 
 def _parse_entity_dict(d: dict[str, Any]) -> DeclaredEntity:

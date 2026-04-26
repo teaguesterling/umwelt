@@ -22,6 +22,7 @@ class Provenance(Enum):
     DISCOVERED = "discovered"
     PROJECTED = "projected"
     INCLUDED = "included"
+    REQUIRED = "required"
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class WorldFile:
     fixed_raw: dict[str, Any] = field(default_factory=dict)
     include_raw: tuple[str, ...] = ()
     exclude_raw: tuple[str, ...] = ()
+    require_raw: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
