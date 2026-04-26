@@ -24,6 +24,18 @@ umwelt parses this, builds a virtual workspace from it, and translates it into w
 
     Learn to write `.umw` files from scratch — files, tools, hooks, budgets, environments, compound selectors.
 
+- :material-file-document: **[World Files](guide/world-files.md)**
+
+    Declare entities in YAML — tools, modes, principals, resources. Shorthand syntax and materialization.
+
+- :material-database-search: **[PolicyEngine](guide/policy-engine.md)**
+
+    Query resolved policy from Python — resolve, trace, lint, check. The consumer-facing API for plugins.
+
+- :material-puzzle: **[Plugins](guide/plugins.md)**
+
+    Build generators (populate the world) and interactors (consume policy). Matcher protocol, entry points.
+
 - :material-cog: **[How It Works](guide/how-it-works.md)**
 
     The entity model, plugin architecture, pivots between world models, and the ecosystem linker role.

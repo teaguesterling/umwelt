@@ -31,7 +31,7 @@ umwelt is the **common language**. Write one view file. Every enforcement tool r
 ## Install
 
 ```bash
-pip install -e ".[dev]"    # from source (PyPI publish coming in v0.4)
+pip install -e ".[dev]"    # from source
 ```
 
 Requires Python 3.10+.
@@ -134,9 +134,16 @@ See [How umwelt Works](docs/guide/how-it-works.md) for the full architectural pi
 
 ## Status
 
-**v0.1.0** — the sandbox consumer ships. Parser, selector engine, cascade resolver, workspace builder, writeback, hook dispatcher, at-rule sugar desugaring, CLI. 315 tests, mypy strict, ruff clean.
+**v0.6.0** — current release. What's new since v0.5:
 
-**Next:** v0.2 adds the nsjail compiler (first real enforcement target). v0.3 adds bwrap + the ratchet scaffold. v0.4 adds lackpy integration + PyPI.
+- **Resource block model** — single `resource` entity with properties replaces per-resource singletons
+- **World state layer** (`umwelt.world`) — YAML world files with shorthand expansion, vocabulary validation, three-level materialization. `umwelt materialize` CLI command
+- **PolicyEngine** (`umwelt.policy`) — consumer-facing Python API over compiled SQLite. `from_files`, `from_db`, programmatic builder. Resolve, trace, lint, select, check, require. COW `extend()` for fork-and-specialize
+- **Mode filtering** — `mode#review tool { allow: false }` gates rules by active mode. Both in-memory cascade and SQL backends
+- **Fixed constraints** — post-cascade clamping for safety-critical properties
+- **CompositeMatcher** — multiple matchers per taxon
+- **Plugin autodiscovery** — entry point registration for third-party plugins
+- **832 tests**, mypy strict, ruff clean
 
 ## The ecosystem
 
@@ -159,7 +166,7 @@ The theoretical foundation is in [The Ma of Multi-Agent Systems](https://judgeme
 
 ```bash
 pip install -e ".[dev]"
-pytest -q              # 315 tests
+pytest -q              # 832 tests
 ruff check src/ tests/ # lint
 mypy src/              # type check (strict)
 ```

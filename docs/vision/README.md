@@ -125,14 +125,19 @@ privileged; all are regular consumers of the common-language contract.
 
 ## Status
 
-**v0.6 in progress.** Building on v0.5.2 (VSM-aligned taxa, `use[of=...]`, cross-axis cascade, DuckDB compile target). Two new subsystems landed:
+**v0.6.0 released.** Building on v0.5.2 (VSM-aligned taxa, `use[of=...]`, cross-axis cascade, DuckDB compile target). v0.6 adds:
 
+- **Resource block model**: Single `resource` entity with properties replaces per-resource singletons. Cleaner vocabulary and CSS selectors.
 - **World State Layer** (`umwelt.world`): YAML-based world file parser with shorthand expansion, vocabulary validation, and three-level materialization (summary/outline/full). `umwelt materialize` CLI command. PyYAML dependency.
-- **PolicyEngine** (`umwelt.policy`): Consumer-facing Python API wrapping a compiled SQLite database. Three constructors (`from_files`, `from_db`, programmatic builder). Four query modes: resolve (cascade resolution), trace (explain why), lint (smell detection), select (entity filtering). COW `extend()` for immutable fork-and-specialize. World file entities populate the same SQL schema as matchers. Typed projection views (tools, modes, etc.) embedded in compiled databases. 70 new tests.
+- **PolicyEngine** (`umwelt.policy`): Consumer-facing Python API wrapping a compiled SQLite database. Three constructors (`from_files`, `from_db`, programmatic builder). Four query modes: resolve (cascade resolution), trace (explain why), lint (smell detection), select (entity filtering). COW `extend()` for immutable fork-and-specialize. World file entities populate the same SQL schema as matchers. Typed projection views (tools, modes, etc.) embedded in compiled databases.
+- **Mode filtering**: `mode#review tool { allow: false }` gates rules by active mode. Both in-memory cascade resolver and SQL PolicyEngine paths support `mode` parameter. Unscoped rules always apply; mode-gated rules only fire when that mode is active.
+- **Fixed constraints**: Post-cascade clamping for safety-critical properties via `fixed_raw` in world files. Applied after cascade resolution regardless of mode.
+- **CompositeMatcher**: Multiple matchers per taxon, enabling plugin coexistence.
+- **Plugin autodiscovery**: Entry point registration via `umwelt.plugins` for third-party plugins.
 
 PolicyEngine replaces the separate ducklog package for consumers like Kibitzer and Lackpy — they query resolved policy via `engine.resolve()` instead of raw SQL. See [`docs/superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) for the full design spec.
 
-632+ tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
+832 tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
 
 ## Document map
 
