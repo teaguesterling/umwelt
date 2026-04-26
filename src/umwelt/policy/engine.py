@@ -184,6 +184,21 @@ class PolicyEngine:
         self._compiled = True
         return con
 
+    @staticmethod
+    def _resolve_mode_to_context(
+        mode: str | None, context: list | dict | None
+    ) -> list | dict | None:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            return {"mode": mode}
+        return context
+
     def resolve(
         self,
         *,
@@ -193,40 +208,26 @@ class PolicyEngine:
         mode: str | None = None,
         context: list | dict | None = None,
     ) -> str | dict[str, str] | None:
-        if mode is not None and context is not None:
-            raise ValueError("Cannot specify both mode= and context=")
-        if mode is not None:
-            warnings.warn(
-                "mode= is deprecated, use context={'mode': value} instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        context = self._resolve_mode_to_context(mode, context)
         from umwelt.policy.queries import resolve_entity
 
         con = self._ensure_compiled()
-        result = resolve_entity(con, type=type, id=id, property=property, mode=mode, context=context)
+        result = resolve_entity(con, type=type, id=id, property=property, context=context)
         logger.info(
             "resolve",
-            extra={"entity": f"{type}#{id}", "property": property, "mode": mode, "value": result},
+            extra={"entity": f"{type}#{id}", "property": property, "context": context, "value": result},
         )
         return result
 
     def resolve_all(self, *, type: str, mode: str | None = None, context: list | dict | None = None) -> list[dict]:
-        if mode is not None and context is not None:
-            raise ValueError("Cannot specify both mode= and context=")
-        if mode is not None:
-            warnings.warn(
-                "mode= is deprecated, use context={'mode': value} instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        context = self._resolve_mode_to_context(mode, context)
         from umwelt.policy.queries import resolve_all_entities
 
         con = self._ensure_compiled()
-        results = resolve_all_entities(con, type=type, mode=mode, context=context)
+        results = resolve_all_entities(con, type=type, context=context)
         logger.info(
             "resolve_all",
-            extra={"type": type, "mode": mode, "result_count": len(results)},
+            extra={"type": type, "context": context, "result_count": len(results)},
         )
         return results
 
@@ -239,24 +240,17 @@ class PolicyEngine:
         mode: str | None = None,
         context: list | dict | None = None,
     ) -> TraceResult:
-        if mode is not None and context is not None:
-            raise ValueError("Cannot specify both mode= and context=")
-        if mode is not None:
-            warnings.warn(
-                "mode= is deprecated, use context={'mode': value} instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        context = self._resolve_mode_to_context(mode, context)
         from umwelt.policy.queries import trace_entity
 
         con = self._ensure_compiled()
-        result = trace_entity(con, type=type, id=id, property=property, mode=mode, context=context)
+        result = trace_entity(con, type=type, id=id, property=property, context=context)
         logger.debug(
             "trace",
             extra={
                 "entity": f"{type}#{id}",
                 "property": property,
-                "mode": mode,
+                "context": context,
                 "candidates": len(result.candidates),
             },
         )
@@ -269,35 +263,17 @@ class PolicyEngine:
         return run_lint(con)
 
     def check(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> bool:
-        if mode is not None and context is not None:
-            raise ValueError("Cannot specify both mode= and context=")
-        if mode is not None:
-            warnings.warn(
-                "mode= is deprecated, use context={'mode': value} instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            context = {"mode": mode}
-            mode = None
+        context = self._resolve_mode_to_context(mode, context)
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
+            actual = self.resolve(type=type, id=id, property=prop_name, context=context)
             if actual != expected_val:
                 return False
         return True
 
     def require(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> None:
-        if mode is not None and context is not None:
-            raise ValueError("Cannot specify both mode= and context=")
-        if mode is not None:
-            warnings.warn(
-                "mode= is deprecated, use context={'mode': value} instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            context = {"mode": mode}
-            mode = None
+        context = self._resolve_mode_to_context(mode, context)
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
+            actual = self.resolve(type=type, id=id, property=prop_name, context=context)
             if actual != expected_val:
                 logger.warning(
                     "require_denied",

@@ -6,40 +6,6 @@ import sqlite3
 
 from umwelt.policy.engine import Candidate, TraceResult
 
-_MODE_FILTER = "AND (mode_qualifier IS NULL OR mode_qualifier = ?)"
-
-_RESOLVE_MODE_EXACT = """
-SELECT property_name, property_value FROM (
-    SELECT property_name, property_value, ROW_NUMBER() OVER (
-        PARTITION BY property_name
-        ORDER BY specificity DESC, rule_index DESC
-    ) AS _rn
-    FROM cascade_candidates
-    WHERE entity_id = ? AND comparison = 'exact'
-    {mode_clause}
-) WHERE _rn = 1
-"""
-
-_RESOLVE_MODE_CAP = """
-SELECT property_name, property_value FROM (
-    SELECT property_name, property_value, ROW_NUMBER() OVER (
-        PARTITION BY property_name
-        ORDER BY CAST(property_value AS INTEGER) ASC, specificity DESC
-    ) AS _rn
-    FROM cascade_candidates
-    WHERE entity_id = ? AND comparison = '<='
-    {mode_clause}
-) WHERE _rn = 1
-"""
-
-_RESOLVE_MODE_PATTERN = """
-SELECT property_name, GROUP_CONCAT(DISTINCT property_value) AS property_value
-FROM cascade_candidates
-WHERE entity_id = ? AND comparison = 'pattern-in'
-{mode_clause}
-GROUP BY property_name
-"""
-
 # ---------------------------------------------------------------------------
 # Generic context qualifier types and SQL templates
 # ---------------------------------------------------------------------------
@@ -166,7 +132,6 @@ def resolve_entity(
     type: str,
     id: str,
     property: str | None = None,
-    mode: str | None = None,
     context: list[ContextQualifier] | dict | None = None,
 ) -> str | dict[str, str] | None:
     entity_row = _find_entity(con, type=type, id=id)
@@ -176,9 +141,6 @@ def resolve_entity(
     entity_pk = entity_row[0]
 
     resolved_context = _normalize_context(context)
-    if resolved_context is None and mode is not None:
-        resolved_context = [("state", "mode", mode)]
-
     if resolved_context is None:
         return _resolve_from_view(con, entity_pk, property)
     return _resolve_with_context(con, entity_pk, property, resolved_context)
@@ -204,46 +166,13 @@ def _resolve_from_view(
     return {name: value for name, value in rows}
 
 
-def _resolve_with_mode(
-    con: sqlite3.Connection,
-    entity_pk: int,
-    property: str | None,
-    mode: str,
-) -> str | dict[str, str] | None:
-    props: dict[str, str] = {}
-    for sql_template in (_RESOLVE_MODE_EXACT, _RESOLVE_MODE_CAP, _RESOLVE_MODE_PATTERN):
-        sql = sql_template.format(mode_clause=_MODE_FILTER)
-        rows = con.execute(sql, (entity_pk, mode)).fetchall()
-        for name, value in rows:
-            props[name] = value
-
-    # Fixed constraints override cascade results regardless of mode
-    try:
-        fixed_rows = con.execute(
-            "SELECT property_name, property_value FROM fixed_constraints WHERE entity_id = ?",
-            (entity_pk,),
-        ).fetchall()
-        for name, value in fixed_rows:
-            if name in props:
-                props[name] = value
-    except sqlite3.OperationalError:
-        pass
-
-    if property is not None:
-        return props.get(property)
-    return props
-
-
 def resolve_all_entities(
     con: sqlite3.Connection,
     *,
     type: str,
-    mode: str | None = None,
     context: list[ContextQualifier] | dict | None = None,
 ) -> list[dict]:
     resolved_context = _normalize_context(context)
-    if resolved_context is None and mode is not None:
-        resolved_context = [("state", "mode", mode)]
 
     entities = con.execute(
         "SELECT id, entity_id, classes, attributes FROM entities WHERE type_name = ?",
@@ -277,7 +206,6 @@ def trace_entity(
     type: str,
     id: str,
     property: str,
-    mode: str | None = None,
     context: list[ContextQualifier] | dict | None = None,
 ) -> TraceResult:
     entity_row = _find_entity(con, type=type, id=id)
@@ -292,8 +220,6 @@ def trace_entity(
     entity_pk = entity_row[0]
 
     resolved_context = _normalize_context(context)
-    if resolved_context is None and mode is not None:
-        resolved_context = [("state", "mode", mode)]
 
     if resolved_context is not None:
         result = _resolve_with_context(con, entity_pk, property, resolved_context)
