@@ -151,6 +151,10 @@ def populate_from_world(con: Any, world: Any) -> None:
     for proj in world.projections:
         _upsert_projection(con, proj)
 
+    fixed_raw = getattr(world, "fixed_raw", {})
+    if fixed_raw:
+        _process_fixed_constraints(con, fixed_raw)
+
     con.commit()
     _rebuild_closure(con)
 
@@ -198,6 +202,35 @@ def _upsert_projection(con: Any, proj: Any) -> None:
             "VALUES (?, ?, ?, ?, 0)",
             (taxon, proj.type, proj.id, attrs_json),
         )
+
+
+def _process_fixed_constraints(con, fixed_raw):
+    for selector_str, props in fixed_raw.items():
+        if not isinstance(props, dict):
+            continue
+        matching_ids = _match_fixed_selector(con, selector_str)
+        for entity_pk in matching_ids:
+            for prop_name, prop_value in props.items():
+                con.execute(
+                    "INSERT INTO fixed_constraints (entity_id, property_name, property_value, selector) "
+                    "VALUES (?, ?, ?, ?)",
+                    (entity_pk, prop_name, str(prop_value), selector_str),
+                )
+
+
+def _match_fixed_selector(con, selector_str):
+    if "#" in selector_str:
+        type_name, entity_id = selector_str.split("#", 1)
+        rows = con.execute(
+            "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",
+            (type_name, entity_id),
+        ).fetchall()
+    else:
+        rows = con.execute(
+            "SELECT id FROM entities WHERE type_name = ?",
+            (selector_str,),
+        ).fetchall()
+    return [r[0] for r in rows]
 
 
 def _guess_taxon(type_name: str) -> str:

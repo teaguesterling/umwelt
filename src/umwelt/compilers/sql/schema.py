@@ -18,6 +18,7 @@ EXPECTED_TABLES = [
     "entities",
     "entity_closure",
     "cascade_candidates",
+    "fixed_constraints",
 ]
 
 
@@ -108,5 +109,17 @@ CREATE TABLE IF NOT EXISTS cascade_candidates (
 
 CREATE INDEX IF NOT EXISTS idx_candidates_entity_prop ON cascade_candidates(entity_id, property_name);
 CREATE INDEX IF NOT EXISTS idx_candidates_comparison ON cascade_candidates(comparison);""")
+
+    # -- Fixed constraints (post-cascade overrides)
+    sections.append(f"""
+CREATE TABLE IF NOT EXISTS fixed_constraints (
+    id              {autoincrement},
+    entity_id       {int_type} REFERENCES entities(id),
+    property_name   {text_type} NOT NULL,
+    property_value  {text_type} NOT NULL,
+    selector        {text_type} NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_fc_entity_prop ON fixed_constraints(entity_id, property_name);""")
 
     return "\n".join(sections)

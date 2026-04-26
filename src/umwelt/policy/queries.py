@@ -22,14 +22,14 @@ def resolve_entity(
 
     if property is not None:
         row = con.execute(
-            "SELECT property_value FROM resolved_properties "
+            "SELECT effective_value FROM effective_properties "
             "WHERE entity_id = ? AND property_name = ?",
             (entity_pk, property),
         ).fetchone()
         return row[0] if row else None
 
     rows = con.execute(
-        "SELECT property_name, property_value FROM resolved_properties WHERE entity_id = ?",
+        "SELECT property_name, effective_value FROM effective_properties WHERE entity_id = ?",
         (entity_pk,),
     ).fetchall()
     return {name: value for name, value in rows}
@@ -48,7 +48,7 @@ def resolve_all_entities(
     results = []
     for eid, entity_id, classes_json, attrs_json in entities:
         props_rows = con.execute(
-            "SELECT property_name, property_value FROM resolved_properties WHERE entity_id = ?",
+            "SELECT property_name, effective_value FROM effective_properties WHERE entity_id = ?",
             (eid,),
         ).fetchall()
         props = {name: value for name, value in props_rows}
@@ -81,8 +81,8 @@ def trace_entity(
     entity_pk = entity_row[0]
 
     winner_row = con.execute(
-        "SELECT property_value, specificity, rule_index "
-        "FROM resolved_properties "
+        "SELECT effective_value, specificity, rule_index "
+        "FROM effective_properties "
         "WHERE entity_id = ? AND property_name = ?",
         (entity_pk, property),
     ).fetchone()
