@@ -186,7 +186,10 @@ def _upsert_declared_entity(con: Any, entity: Any) -> None:
 
 
 def _upsert_projection(con: Any, proj: Any) -> None:
-    attrs_json = json.dumps(proj.attributes) if proj.attributes else None
+    attrs = dict(proj.attributes) if proj.attributes else {}
+    if "name" not in attrs:
+        attrs["name"] = proj.id
+    attrs_json = json.dumps(attrs)
 
     existing = con.execute(
         "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",

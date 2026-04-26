@@ -93,6 +93,18 @@ def _resolve_with_mode(
         for name, value in rows:
             props[name] = value
 
+    # Fixed constraints override cascade results regardless of mode
+    try:
+        fixed_rows = con.execute(
+            "SELECT property_name, property_value FROM fixed_constraints WHERE entity_id = ?",
+            (entity_pk,),
+        ).fetchall()
+        for name, value in fixed_rows:
+            if name in props:
+                props[name] = value
+    except sqlite3.OperationalError:
+        pass
+
     if property is not None:
         return props.get(property)
     return props
