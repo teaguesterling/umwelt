@@ -65,3 +65,39 @@ def available() -> list[str]:
 def clear_compilers() -> None:
     """Empty the compiler registry. For test isolation."""
     _REGISTRY.clear()
+
+
+_ALTITUDE_RANK: dict[str, int] = {
+    "os": 0,
+    "language": 1,
+    "semantic": 2,
+    "conversational": 3,
+}
+
+
+def _filter_by_altitude(view: ResolvedView, max_altitude: Altitude) -> ResolvedView:
+    """Return a ResolvedView containing only properties at or below max_altitude."""
+    from umwelt.registry.properties import get_property
+
+    max_rank = _ALTITUDE_RANK[max_altitude]
+    filtered = ResolvedView()
+
+    for taxon in view.taxa():
+        for entity, props in view.entries(taxon):
+            kept: dict[str, str] = {}
+            type_name = getattr(entity, "type_name", None)
+            for prop_name, prop_value in props.items():
+                prop_altitude = None
+                if type_name:
+                    try:
+                        schema = get_property(taxon, type_name, prop_name)
+                        prop_altitude = schema.altitude
+                    except Exception:
+                        pass
+
+                if prop_altitude is None or _ALTITUDE_RANK.get(prop_altitude, 0) <= max_rank:
+                    kept[prop_name] = prop_value
+            if kept:
+                filtered.add(taxon, entity, kept)
+
+    return filtered

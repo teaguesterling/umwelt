@@ -18,6 +18,7 @@ def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
     warnings.extend(_detect_uncovered_entity(con))
     warnings.extend(_detect_specificity_escalation(con))
     warnings.extend(_detect_fixed_override(con))
+    warnings.extend(_detect_unrealizable_altitude(con))
 
     for w in warnings:
         logger.warning(
@@ -241,3 +242,71 @@ def _entity_name(con: sqlite3.Connection, entity_id: int) -> str:
         return f"entity({entity_id})"
     type_name, eid = row
     return f"{type_name}#{eid}" if eid else f"{type_name}(id={entity_id})"
+
+
+def _detect_unrealizable_altitude(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when a resolved property is at an altitude no compiler handles."""
+    warnings: list[LintWarning] = []
+    try:
+        from umwelt.compilers.protocol import _ALTITUDE_RANK, available
+        from umwelt.registry.properties import get_property
+
+        registered = available()
+        if not registered:
+            return warnings
+
+        from umwelt.compilers.protocol import get as get_compiler
+        compiler_altitudes = set()
+        for name in registered:
+            try:
+                c = get_compiler(name)
+                compiler_altitudes.add(c.altitude)
+            except Exception:
+                continue
+
+        if not compiler_altitudes:
+            return warnings
+
+        max_rank = max(_ALTITUDE_RANK.get(a, 0) for a in compiler_altitudes)
+
+        rows = con.execute(
+            "SELECT DISTINCT property_name FROM resolved_properties"
+        ).fetchall()
+
+        for (prop_name,) in rows:
+            try:
+                state_rows = con.execute(
+                    "SELECT DISTINCT e.type_name FROM entities e "
+                    "JOIN resolved_properties rp ON e.id = rp.entity_id "
+                    "WHERE rp.property_name = ? LIMIT 1",
+                    (prop_name,),
+                ).fetchall()
+                if not state_rows:
+                    continue
+                type_name = state_rows[0][0]
+                taxon_row = con.execute(
+                    "SELECT DISTINCT e.taxon FROM entities e "
+                    "JOIN resolved_properties rp ON e.id = rp.entity_id "
+                    "WHERE rp.property_name = ? AND e.type_name = ? LIMIT 1",
+                    (prop_name, type_name),
+                ).fetchall()
+                if not taxon_row:
+                    continue
+                taxon = taxon_row[0][0]
+                schema = get_property(taxon, type_name, prop_name)
+                if schema.altitude and _ALTITUDE_RANK.get(schema.altitude, 0) > max_rank:
+                    warnings.append(LintWarning(
+                        smell="unrealizable_altitude",
+                        severity="warning",
+                        description=(
+                            f"Property '{prop_name}' ({schema.altitude}) has no compiler "
+                            f"at that altitude"
+                        ),
+                        entities=(),
+                        property=prop_name,
+                    ))
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    return warnings

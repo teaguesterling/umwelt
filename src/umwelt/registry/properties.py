@@ -34,6 +34,7 @@ class PropertySchema:
     value_range: tuple[Any, Any] | None = None
     description: str = ""
     category: str | None = None
+    altitude: str | None = None
 
 
 def register_property(
@@ -49,6 +50,7 @@ def register_property(
     value_unit: str | None = None,
     value_range: tuple[Any, Any] | None = None,
     category: str | None = None,
+    altitude: str | None = None,
 ) -> None:
     """Register a property on a (taxon, entity) pair."""
     get_entity(taxon, entity)  # raises if unknown
@@ -71,6 +73,7 @@ def register_property(
         value_range=value_range,
         description=description,
         category=category,
+        altitude=altitude,
     )
 
 
