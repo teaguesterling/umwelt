@@ -32,7 +32,7 @@ class Compiler(Protocol):
     target_format: str
     altitude: Altitude
 
-    def compile(self, view: ResolvedView) -> str | list[str] | dict[str, Any]:
+    def compile(self, view: ResolvedView, **options: Any) -> str | list[str] | dict[str, Any]:
         ...
 
 
