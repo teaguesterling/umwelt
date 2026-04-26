@@ -247,6 +247,43 @@ engine.require(type="tool", id="Bash", visible="false")  # raises PolicyDenied o
 
 Consumers like Kibitzer and Lackpy use PolicyEngine instead of raw SQL — umwelt declares, consumers enforce.
 
+## Resolution modes: table vs predicate
+
+> **Experimental.** The resolution model described here is the v0.6 behavior. The boundary between table and predicate resolution, and how context qualifiers (like mode) participate, is under active design. Expect breaking changes before 1.0.
+
+umwelt currently resolves policy through two paths, each with different assumptions about when entities are known:
+
+### Table mode (SQL path)
+
+All entities are declared upfront — in world files, via `add_entities()`, or through `extend()`. The compilation pipeline materializes every entity into the `entities` table, evaluates every selector against every entity, and pre-computes the cascade into `resolved_properties`. Queries are lookups.
+
+This is the PolicyEngine path. It's fast, auditable (every candidate is stored in `cascade_candidates`), and traceable. But it requires that the entity exists before the policy question is asked.
+
+### Predicate mode (matcher path)
+
+The in-memory cascade resolver evaluates selectors against registered matchers at query time. A matcher's `match_type()` returns entities that currently exist; `children()` navigates structural descent. Entities don't need to be pre-declared — they're discovered by the matcher when the selector is evaluated.
+
+This is the path for live evaluation against runtime state: AST nodes parsed from a file, HTML tags in a request, rows in a query result. The entity appears, the matcher finds it, the cascade resolves immediately.
+
+### The gap
+
+These two paths don't fully compose. Table mode can't handle entities that don't exist yet. Predicate mode can't provide the audit trail (candidates, trace) that table mode offers. And some mechanisms are special-cased to one path:
+
+- **Mode filtering** — the `mode` parameter on PolicyEngine and the `mode_qualifier` SQL column are hardcoded to the `mode` entity type. This is a table-mode convenience that bypasses the selector engine. It should be a general context-qualifier mechanism that works in both paths.
+- **Context qualifiers** — cross-taxon selectors like `mode#test tool[name="Bash"]` work in both paths, but the runtime activation ("which mode is active right now?") is only available as a special-case filter in the SQL path.
+- **On-demand entities** — the matcher path handles these naturally, but the SQL path requires `extend()` to inject entities after compilation. There's no way to ask "if this entity existed, what would the policy say?" without actually creating it.
+
+### What convergence looks like
+
+A unified resolution model would:
+
+1. Accept entities that are **declared** (world file), **discovered** (matcher), or **hypothetical** (asked about but not yet materialized)
+2. Resolve context qualifiers generically — mode, world environment, principal, or any entity used as a cross-axis qualifier
+3. Produce the same answer regardless of which path resolved it
+4. Preserve auditability — every resolution, including on-demand ones, should be traceable
+
+This is the primary design target for the pre-1.0 architecture. See `docs/superpowers/specs/` for design work in progress.
+
 ## Where to go from here
 
 - **[Vision: Policy Layer](../vision/policy-layer.md)** — the full theoretical framing: why umwelt exists, how it fits the specified-band regulation strategy, the three-layer model.
