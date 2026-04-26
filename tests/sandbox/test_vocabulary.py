@@ -139,7 +139,7 @@ def test_hook_run_property():
 def test_resource_properties():
     with registry_scope():
         _register_sandbox()
-        for name in ("memory", "wall-time", "cpu", "max-fds", "tmpfs"):
+        for name in ("memory", "wall-time", "cpu-time", "max-fds", "tmpfs"):
             prop = get_property("world", "resource", name)
             assert prop.name == name
             assert prop.restrictive_direction == "min"

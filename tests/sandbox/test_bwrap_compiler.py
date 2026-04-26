@@ -133,9 +133,9 @@ class TestBwrapResourceLimits:
         assert "timeout" in result.wrapper
         assert "60" in result.wrapper
 
-    def test_cpu_emits_prlimit_cpu(self):
+    def test_cpu_time_emits_prlimit_cpu(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(), {"cpu": "30s"})
+        rv.add("world", ResourceEntity(), {"cpu-time": "30s"})
         result = BwrapCompiler().compile_full(rv)
         assert "prlimit" in result.wrapper
         assert "--cpu=30" in result.wrapper

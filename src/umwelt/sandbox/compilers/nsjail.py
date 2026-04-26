@@ -133,8 +133,8 @@ class NsjailCompiler:
             cfg.rlimit_as = parse_memory_mb(props["memory"])
         if props.get("wall-time"):
             cfg.time_limit = parse_time_seconds(props["wall-time"])
-        if props.get("cpu"):
-            cfg.rlimit_cpu = parse_time_seconds(props["cpu"])
+        if props.get("cpu-time"):
+            cfg.rlimit_cpu = parse_time_seconds(props["cpu-time"])
         if props.get("max-fds"):
             cfg.rlimit_nofile = int(props["max-fds"])
         if props.get("tmpfs"):

@@ -107,9 +107,9 @@ def test_wall_time_limit_minutes():
     assert "time_limit: 300" in output
 
 
-def test_cpu_limit():
+def test_cpu_time_limit():
     rv = ResolvedView()
-    rv.add("world", ResourceEntity(), {"cpu": "30s"})
+    rv.add("world", ResourceEntity(), {"cpu-time": "30s"})
     output = NsjailCompiler().compile(rv)
     assert "rlimit_cpu: 30" in output
 
@@ -132,7 +132,7 @@ def test_tmpfs_resource():
 def test_all_resource_limits_on_single_entity():
     rv = ResolvedView()
     rv.add("world", ResourceEntity(), {
-        "memory": "1GB", "wall-time": "5m", "cpu": "30s",
+        "memory": "1GB", "wall-time": "5m", "cpu-time": "30s",
         "max-fds": "256", "tmpfs": "128MB",
     })
     output = NsjailCompiler().compile(rv)

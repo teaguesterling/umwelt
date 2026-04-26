@@ -49,7 +49,7 @@ Use this when you have the original source files and want the full compilation p
 Load a pre-compiled database. No parsing, no compilation. The database is copied into memory (copy-on-write semantics — the original file is never modified).
 
 ```python
-engine = PolicyEngine.from_db("compiled.duckdb")
+engine = PolicyEngine.from_db("compiled.db")
 ```
 
 Use this in consumers that receive a compiled policy database. Kibitzer loads its policy this way — the compilation happened at authoring time, and Kibitzer just queries the result.
@@ -198,7 +198,7 @@ Use cases:
 ### Save to file
 
 ```python
-engine.save("compiled.duckdb")
+engine.save("compiled.db")
 ```
 
 Writes the compiled SQLite database to a file. Another consumer can load it with `from_db()`. The database contains everything: entities, cascade candidates, resolved properties, projection views, compilation metadata.
@@ -368,7 +368,7 @@ def build_tool_namespace(engine: PolicyEngine) -> dict:
     return namespace
 
 # Usage
-engine = PolicyEngine.from_db("compiled.duckdb")
+engine = PolicyEngine.from_db("compiled.db")
 ns = build_tool_namespace(engine)
 # → {"Read": {"name": "Read"}, "Bash": {"name": "Bash", "max_level": 3, "patterns": ["git *"]}}
 ```
@@ -402,7 +402,7 @@ def build_nsjail_config(engine: PolicyEngine) -> dict:
 
     return config
 
-engine = PolicyEngine.from_db("compiled.duckdb")
+engine = PolicyEngine.from_db("compiled.db")
 nsjail = build_nsjail_config(engine)
 # → {"mounts": [{"src": "src/", "dst": "src/", "rw": true}],
 #    "exec_paths": ["/bin/bash", "/usr/bin/git"]}

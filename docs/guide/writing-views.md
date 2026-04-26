@@ -112,7 +112,7 @@ After the agent modifies any file, these commands run in order. If one fails, th
 ## Resource limits
 
 ```css
-resource { memory: 512MB; wall-time: 5m; cpu: 3; max-fds: 128; }
+resource { memory: 512MB; wall-time: 5m; cpu-time: 30s; max-fds: 128; }
 ```
 
 Each limit is a property on a single `resource` entity — the cascade resolves them independently. Override specific limits per mode or environment:
