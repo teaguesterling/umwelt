@@ -190,22 +190,23 @@ class PolicyEngine:
         id: str,
         property: str | None = None,
         mode: str | None = None,
+        context: list | dict | None = None,
     ) -> str | dict[str, str] | None:
         from umwelt.policy.queries import resolve_entity
 
         con = self._ensure_compiled()
-        result = resolve_entity(con, type=type, id=id, property=property, mode=mode)
+        result = resolve_entity(con, type=type, id=id, property=property, mode=mode, context=context)
         logger.info(
             "resolve",
             extra={"entity": f"{type}#{id}", "property": property, "mode": mode, "value": result},
         )
         return result
 
-    def resolve_all(self, *, type: str, mode: str | None = None) -> list[dict]:
+    def resolve_all(self, *, type: str, mode: str | None = None, context: list | dict | None = None) -> list[dict]:
         from umwelt.policy.queries import resolve_all_entities
 
         con = self._ensure_compiled()
-        results = resolve_all_entities(con, type=type, mode=mode)
+        results = resolve_all_entities(con, type=type, mode=mode, context=context)
         logger.info(
             "resolve_all",
             extra={"type": type, "mode": mode, "result_count": len(results)},
@@ -219,11 +220,12 @@ class PolicyEngine:
         id: str,
         property: str,
         mode: str | None = None,
+        context: list | dict | None = None,
     ) -> TraceResult:
         from umwelt.policy.queries import trace_entity
 
         con = self._ensure_compiled()
-        result = trace_entity(con, type=type, id=id, property=property, mode=mode)
+        result = trace_entity(con, type=type, id=id, property=property, mode=mode, context=context)
         logger.debug(
             "trace",
             extra={
@@ -241,16 +243,16 @@ class PolicyEngine:
         con = self._ensure_compiled()
         return run_lint(con)
 
-    def check(self, *, type: str, id: str, mode: str | None = None, **expected: str) -> bool:
+    def check(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> bool:
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode)
+            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
             if actual != expected_val:
                 return False
         return True
 
-    def require(self, *, type: str, id: str, mode: str | None = None, **expected: str) -> None:
+    def require(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> None:
         for prop_name, expected_val in expected.items():
-            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode)
+            actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
             if actual != expected_val:
                 logger.warning(
                     "require_denied",

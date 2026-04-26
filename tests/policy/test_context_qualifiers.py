@@ -102,3 +102,89 @@ class TestContextQualifierStorage:
         qualifiers = {r[0] for r in rows}
         assert "review" in qualifiers
         assert "implement" in qualifiers
+
+
+class TestContextFilteredResolve:
+    def test_context_mode_review_denies_bash(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Bash", property="allow",
+            context=[("state", "mode", "review")],
+        )
+        assert val == "false"
+
+    def test_context_mode_review_allows_read(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Read", property="allow",
+            context=[("state", "mode", "review")],
+        )
+        assert val == "true"
+
+    def test_context_mode_implement_caps_level(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Bash", property="max-level",
+            context=[("state", "mode", "implement")],
+        )
+        assert val == "3"
+
+    def test_context_none_returns_all(self, context_engine):
+        val_no_ctx = context_engine.resolve(type="tool", id="Bash", property="allow")
+        val_ctx_none = context_engine.resolve(
+            type="tool", id="Bash", property="allow", context=None,
+        )
+        assert val_no_ctx == val_ctx_none
+
+    def test_context_unscoped_rules_always_apply(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Read", property="allow",
+            context=[("state", "mode", "implement")],
+        )
+        assert val == "true"
+
+    def test_context_dict_shorthand(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Bash", property="allow",
+            context={"mode": "review"},
+        )
+        assert val == "false"
+
+    def test_context_multi_qualifier(self, context_engine):
+        val = context_engine.resolve(
+            type="tool", id="Bash", property="allow",
+            context=[("state", "mode", "review"), ("principal", "principal", "Teague")],
+        )
+        assert val == "false"
+
+
+class TestContextFilteredResolveAll:
+    def test_resolve_all_with_context(self, context_engine):
+        tools = context_engine.resolve_all(
+            type="tool",
+            context=[("state", "mode", "review")],
+        )
+        bash = next(t for t in tools if t["entity_id"] == "Bash")
+        assert bash["properties"]["allow"] == "false"
+
+
+class TestContextFilteredTrace:
+    def test_trace_with_context(self, context_engine):
+        result = context_engine.trace(
+            type="tool", id="Bash", property="max-level",
+            context=[("state", "mode", "implement")],
+        )
+        assert result.value == "3"
+
+
+class TestContextFilteredCheck:
+    def test_check_with_context(self, context_engine):
+        assert context_engine.check(
+            type="tool", id="Bash",
+            context=[("state", "mode", "review")],
+            allow="false",
+        )
+
+    def test_require_with_context(self, context_engine):
+        context_engine.require(
+            type="tool", id="Read",
+            context=[("state", "mode", "review")],
+            allow="true",
+        )
