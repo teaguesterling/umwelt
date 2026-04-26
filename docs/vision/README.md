@@ -132,12 +132,17 @@ privileged; all are regular consumers of the common-language contract.
 - **PolicyEngine** (`umwelt.policy`): Consumer-facing Python API wrapping a compiled SQLite database. Three constructors (`from_files`, `from_db`, programmatic builder). Four query modes: resolve (cascade resolution), trace (explain why), lint (smell detection), select (entity filtering). COW `extend()` for immutable fork-and-specialize. World file entities populate the same SQL schema as matchers. Typed projection views (tools, modes, etc.) embedded in compiled databases.
 - **Mode filtering**: `mode#review tool { allow: false }` gates rules by active mode. Both in-memory cascade resolver and SQL PolicyEngine paths support `mode` parameter. Unscoped rules always apply; mode-gated rules only fire when that mode is active.
 - **Fixed constraints**: Post-cascade clamping for safety-critical properties via `fixed_raw` in world files. Applied after cascade resolution regardless of mode.
+- **World file composition**: `require:`, `include:`, `exclude:` for composing world files with cycle detection and merge-order semantics.
 - **CompositeMatcher**: Multiple matchers per taxon, enabling plugin coexistence.
 - **Plugin autodiscovery**: Entry point registration via `umwelt.plugins` for third-party plugins.
+- **Cross-taxon validators**: `CrossTaxonValidatorProtocol` for pre-compilation invariant checks spanning taxa.
+- **Altitude filtering**: `PropertySchema.altitude` field with `_filter_by_altitude()` so compilers only receive properties at their enforcement altitude.
+- **Compiler `**options`**: `Compiler.compile()` accepts caller context (`workspace_root`, `mode`, etc.).
+- **Shared event schema**: Six observation properties on `audit/observation` for consistent tool monitoring across plugins.
 
 PolicyEngine replaces the separate ducklog package for consumers like Kibitzer and Lackpy — they query resolved policy via `engine.resolve()` instead of raw SQL. See [`docs/superpowers/specs/2026-04-20-policy-engine-design.md`](../superpowers/specs/2026-04-20-policy-engine-design.md) for the full design spec.
 
-832 tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
+854 tests total. See [`docs/superpowers/plans/`](../superpowers/plans/) for the active implementation plans and [`docs/vision/evaluation-framework.md`](./evaluation-framework.md) for the claim ledger.
 
 ## Document map
 

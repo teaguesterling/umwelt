@@ -4,7 +4,7 @@
 
 ## Where compilers live
 
-**Core umwelt ships one infrastructure compiler: `umwelt.compilers.sql`, which compiles views to queryable SQLite databases.** This is an IR compiler — it materializes the cascade into a relational format for downstream consumers to query, rather than targeting an enforcement tool directly. All enforcement-target compilers live in consumers. The first-party sandbox consumer (`umwelt.sandbox.compilers.*`) ships nsjail, bwrap, lackpy-namespace, and kibitzer-hooks as its first-class targets. Third-party consumers register their own compilers via the same API — `register_compiler("<name>", CompilerImpl())` at import time — and become available to `umwelt compile --target <name>` without any modification to core umwelt.
+**Core umwelt ships one infrastructure compiler: `umwelt.compilers.sql`, which compiles views to queryable SQLite databases.** This is an IR compiler — it materializes the cascade into a relational format for downstream consumers to query, rather than targeting an enforcement tool directly. All enforcement-target compilers live in consumers. The first-party sandbox consumer (`umwelt.sandbox.compilers.*`) ships nsjail, bwrap, and lackpy-namespace as its first-class targets; kibitzer-hooks is planned. Third-party consumers register their own compilers via the same API — `register_compiler("<name>", CompilerImpl())` at import time — and become available to `umwelt compile --target <name>` without any modification to core umwelt.
 
 This split is load-bearing: it's what lets umwelt be *vocabulary-agnostic* at the core. A consumer that registers a non-sandbox taxonomy (e.g., an access-control domain) can provide its own compilers against its own entities without waiting for core umwelt to learn about its vocabulary.
 
@@ -87,7 +87,7 @@ These target enforcement mechanisms that aren't OS sandboxes but still consume v
 
 | Compiler | Target format | Status | Notes |
 |---|---|---|---|
-| `lackpy-namespace` | Python dict (lackpy namespace config) | planned | Language altitude. Reads `@tools` and a future `@namespace` at-rule, emits a lackpy namespace/tool restriction config. |
+| `lackpy-namespace` | Python dict (lackpy namespace config) | **shipped** (v0.4) | Language altitude. Reads tool allow/deny, kit allow, max-level, and patterns from `capability`-taxon entries and emits a lackpy namespace/tool restriction config. |
 | `kibitzer-hooks` | kibitzer rule dict | planned | Semantic altitude. Reads `@tools` (for hook-based enforcement of allow/deny during a Claude Code session) and emits a kibitzer rule configuration. |
 
 ### Conversational altitude

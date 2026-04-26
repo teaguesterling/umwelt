@@ -141,9 +141,14 @@ See [How umwelt Works](docs/guide/how-it-works.md) for the full architectural pi
 - **PolicyEngine** (`umwelt.policy`) — consumer-facing Python API over compiled SQLite. `from_files`, `from_db`, programmatic builder. Resolve, trace, lint, select, check, require. COW `extend()` for fork-and-specialize
 - **Mode filtering** — `mode#review tool { allow: false }` gates rules by active mode. Both in-memory cascade and SQL backends
 - **Fixed constraints** — post-cascade clamping for safety-critical properties
-- **CompositeMatcher** — multiple matchers per taxon
-- **Plugin autodiscovery** — entry point registration for third-party plugins
-- **832 tests**, mypy strict, ruff clean
+- **World file composition** — `require:`, `include:`, `exclude:` for composing world files with cycle detection
+- **CompositeMatcher** — multiple matchers per taxon for plugin coexistence
+- **Plugin autodiscovery** — `umwelt.plugins` entry points for third-party plugins
+- **Cross-taxon validators** — pre-compilation invariant checks spanning taxa
+- **Altitude filtering** — compilers receive only properties at their enforcement altitude
+- **Compiler `**options`** — `compile()` accepts caller context (`workspace_root`, `mode`, etc.)
+- **Shared event schema** — common observation properties for audit/monitoring plugins
+- **854 tests**, mypy strict, ruff clean
 
 ## The ecosystem
 
@@ -166,7 +171,7 @@ The theoretical foundation is in [The Ma of Multi-Agent Systems](https://judgeme
 
 ```bash
 pip install -e ".[dev]"
-pytest -q              # 832 tests
+pytest -q              # 854 tests
 ruff check src/ tests/ # lint
 mypy src/              # type check (strict)
 ```

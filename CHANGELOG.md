@@ -21,7 +21,7 @@ project follows semantic versioning.
 - **Altitude filtering** — `PropertySchema.altitude` field, `_ALTITUDE_RANK` ordering (`os` < `language` < `semantic` < `conversational`), `_filter_by_altitude()` pre-filters `ResolvedView` before passing to compilers. Linter warns on unrealizable altitude properties.
 - **MCP-projected tool attributes** — `param-count` and `output-type` attributes on the `tool` entity type, populated by future MCP generator plugins.
 - **Plugin guide documentation** — `docs/guide/plugins.md` (586 lines), `docs/guide/policy-engine.md` (456 lines), `docs/guide/world-files.md` (363 lines).
-- 850+ tests (up from 630 in v0.5).
+- 854 tests (up from 630 in v0.5).
 
 ### Changed
 - `populate_from_world` now always includes entity `id` as a `name` attribute in the JSON column, matching matcher-discovered entity behavior. Fixes `tool[name="Read"]` selectors in the SQL path.
