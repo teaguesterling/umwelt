@@ -10,8 +10,7 @@ world#auth-fix {
   tool[name="Edit"]        { allow: true; }
   tool[name="Bash"]        { allow: false; }
   network                  { deny: "*"; }
-  resource[kind="memory"]  { limit: 512MB; }
-  resource[kind="wall-time"] { limit: 5m; }
+  resource                 { memory: 512MB; wall-time: 5m; }
   hook[event="after-change"] {
     run: "pytest tests/auth/ -x";
     run: "ruff check src/auth/";
@@ -77,8 +76,7 @@ tool[name="Bash"] { allow: false; }
 hook[event="after-change"] { run: "pytest tests/auth/ -x"; }
 
 /* Resource limits */
-resource[kind="memory"]    { limit: 512MB; }
-resource[kind="wall-time"] { limit: 5m; }
+resource { memory: 512MB; wall-time: 5m; }
 network { deny: "*"; }
 ```
 
@@ -109,7 +107,7 @@ world#dev tool[name="Bash"] { allow: true; max-level: 4; }
 /* CI */
 world#ci file { editable: false; }
 world#ci tool[name="Bash"] { max-level: 2; }
-world#ci resource[kind="memory"] { limit: 512MB; }
+world#ci resource { memory: 512MB; }
 ```
 
 Resolve against a specific environment: `umwelt dry-run --world dev project.umw`.

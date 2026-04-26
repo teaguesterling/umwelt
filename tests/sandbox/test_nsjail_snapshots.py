@@ -75,8 +75,7 @@ def test_snapshot_auth_fix():
         {"editable": "false"},
     )
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "5m"})
+    rv.add("world", ResourceEntity(), {"memory": "512MB", "wall-time": "5m"})
 
     output = NsjailCompiler().compile(rv)
     expected = _load_expected("auth-fix.textproto")
@@ -103,7 +102,7 @@ def test_snapshot_readonly_exploration():
         {"editable": "false"},
     )
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+    rv.add("world", ResourceEntity(), {"wall-time": "60s"})
 
     output = NsjailCompiler().compile(rv)
     expected = _load_expected("readonly-exploration.textproto")

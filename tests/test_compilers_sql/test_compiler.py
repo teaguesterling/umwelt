@@ -33,9 +33,9 @@ class TestTypeSelectors:
         sql = compile_selector(parse_selector("mode"), DIALECT)
         assert query_ids(populated_db, sql) == {50, 51, 52, 53, 54}
 
-    def test_bare_resource_matches_all_resources(self, populated_db):
+    def test_bare_resource_matches_singleton(self, populated_db):
         sql = compile_selector(parse_selector("resource"), DIALECT)
-        assert query_ids(populated_db, sql) == {20, 21}
+        assert query_ids(populated_db, sql) == {20}
 
     def test_type_selector_excludes_other_types(self, populated_db):
         sql = compile_selector(parse_selector("tool"), DIALECT)
@@ -93,10 +93,6 @@ class TestAttributeSelectors:
     def test_attribute_on_tool(self, populated_db):
         sql = compile_selector(parse_selector('tool[altitude="os"]'), DIALECT)
         assert query_ids(populated_db, sql) == {40, 41, 42, 43, 45, 46}
-
-    def test_resource_kind_attribute(self, populated_db):
-        sql = compile_selector(parse_selector('resource[kind="memory"]'), DIALECT)
-        assert query_ids(populated_db, sql) == {20}
 
 
 # ============================================================================

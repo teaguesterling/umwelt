@@ -121,34 +121,34 @@ class TestBwrapOrdering:
 class TestBwrapResourceLimits:
     def test_memory_limit_emits_prlimit(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
+        rv.add("world", ResourceEntity(), {"memory": "512MB"})
         result = BwrapCompiler().compile_full(rv)
         assert "prlimit" in result.wrapper
         assert "--as=536870912" in result.wrapper  # 512 * 1024 * 1024
 
     def test_wall_time_emits_timeout(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+        rv.add("world", ResourceEntity(), {"wall-time": "60s"})
         result = BwrapCompiler().compile_full(rv)
         assert "timeout" in result.wrapper
         assert "60" in result.wrapper
 
     def test_cpu_time_emits_prlimit_cpu(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(kind="cpu-time"), {"limit": "30s"})
+        rv.add("world", ResourceEntity(), {"cpu-time": "30s"})
         result = BwrapCompiler().compile_full(rv)
         assert "prlimit" in result.wrapper
         assert "--cpu=30" in result.wrapper
 
     def test_max_fds_emits_prlimit_nofile(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(kind="max-fds"), {"limit": "128"})
+        rv.add("world", ResourceEntity(), {"max-fds": "128"})
         result = BwrapCompiler().compile_full(rv)
         assert "--nofile=128" in result.wrapper
 
     def test_tmpfs_resource_emits_bwrap_flag(self):
         rv = ResolvedView()
-        rv.add("world", ResourceEntity(kind="tmpfs"), {"limit": "64MB"})
+        rv.add("world", ResourceEntity(), {"tmpfs": "64MB"})
         result = BwrapCompiler().compile_full(rv)
         assert "--tmpfs" in result.argv
         assert "/tmp" in result.argv
@@ -175,9 +175,7 @@ class TestBwrapResourceLimits:
         rv.add("world", MountEntity(path="/workspace/src/common"), {"source": "src/common", "readonly": "true"})
         rv.add("world", MountEntity(path="/tmp/work"), {"source": "/tmp/work", "readonly": "false"})
         rv.add("world", NetworkEntity(), {"deny": "*"})
-        rv.add("world", ResourceEntity(kind="memory"), {"limit": "512MB"})
-        rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
-        rv.add("world", ResourceEntity(kind="tmpfs"), {"limit": "64MB"})
+        rv.add("world", ResourceEntity(), {"memory": "512MB", "wall-time": "60s", "tmpfs": "64MB"})
         rv.add("world", EnvEntity(name="CI"), {"allow": "true"})
 
         result = BwrapCompiler().compile_full(rv)

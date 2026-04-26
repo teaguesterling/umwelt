@@ -169,22 +169,18 @@ def test_network_deny_desugars_to_network_rule():
 
 def test_budget_multiple_dimensions_desugar_to_resource_rules():
     view = parse("@budget { memory: 512MB; wall-time: 60s; }", validate=False)
-    assert len(view.rules) == 2
+    assert len(view.rules) == 1
     assert len(view.unknown_at_rules) == 0
 
-    rule_map = {}
-    for r in view.rules:
-        sel = r.selectors[0]
-        simple = sel.parts[0].selector
-        assert simple.type_name == "resource"
-        kind_attr = next((a for a in simple.attributes if a.name == "kind"), None)
-        assert kind_attr is not None
-        rule_map[kind_attr.value] = r.declarations[0].values[0]
+    rule = view.rules[0]
+    sel = rule.selectors[0]
+    simple = sel.parts[0].selector
+    assert simple.type_name == "resource"
+    assert len(simple.attributes) == 0
 
-    assert "memory" in rule_map
-    assert "512MB" in rule_map["memory"]
-    assert "wall-time" in rule_map
-    assert "60s" in rule_map["wall-time"]
+    decl_map = {d.property_name: d.values[0] for d in rule.declarations}
+    assert "512MB" in decl_map["memory"]
+    assert "60s" in decl_map["wall-time"]
 
 
 def test_env_allow_deny_desugars_with_specificity():

@@ -21,7 +21,7 @@ def _simple_view() -> ResolvedView:
         {"editable": "false"},
     )
     rv.add("world", NetworkEntity(), {"deny": "*"})
-    rv.add("world", ResourceEntity(kind="wall-time"), {"limit": "60s"})
+    rv.add("world", ResourceEntity(), {"wall-time": "60s"})
     return rv
 
 
