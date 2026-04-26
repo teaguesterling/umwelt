@@ -73,7 +73,9 @@ engine.add_stylesheet("""
 
 Compilation is lazy — the engine compiles on first query, not on construction. You can call `add_entities()` and `add_stylesheet()` multiple times before querying.
 
-## Query modes
+## Query methods
+
+> **Note on `mode` parameter:** The `resolve`, `resolve_all`, `trace`, `check`, and `require` methods accept an optional `mode` keyword for runtime mode filtering. This is currently special-cased to the `mode` entity type and will be replaced by a generic context-qualifier mechanism before 1.0. See the [mode entity deprecation notice](entity-reference.md#mode--regulation-mode-v052).
 
 ### resolve — what does the policy say?
 

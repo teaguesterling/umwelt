@@ -596,6 +596,8 @@ mode#review file              { editable: false; }
 modes: [implement, review, test, explore]
 ```
 
+> **Deprecation notice:** The `mode` parameter on PolicyEngine methods and the `mode_qualifier` column in the SQL schema are special-cased to the `mode` entity type. This violates core's vocabulary-agnostic principle — context-qualifier filtering should work for any entity type used in cross-axis selectors, not just `mode`. Before 1.0, the mode-specific plumbing will be replaced by a generic context-qualifier mechanism. The `mode` entity and cross-axis selector syntax will remain stable; only the PolicyEngine filtering API will change.
+
 ---
 
 ## actor taxon
