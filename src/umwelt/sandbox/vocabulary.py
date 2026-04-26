@@ -161,6 +161,19 @@ def _register_audit() -> None:
     register_property(taxon="audit", entity="manifest", name="path", value_type=str,
                      description="Path to the manifest file.")
 
+    register_property(taxon="audit", entity="observation", name="type",
+                     value_type=str, description="event category: tool_call, build_run, failure, etc.")
+    register_property(taxon="audit", entity="observation", name="timestamp",
+                     value_type=str, description="ISO 8601 timestamp")
+    register_property(taxon="audit", entity="observation", name="session_id",
+                     value_type=str, description="Claude Code session ID")
+    register_property(taxon="audit", entity="observation", name="severity",
+                     value_type=str, description="info, warning, error, critical")
+    register_property(taxon="audit", entity="observation", name="tags",
+                     value_type=str, description="classification tags: repeated_pattern, permission_denial, etc.")
+    register_property(taxon="audit", entity="observation", name="payload",
+                     value_type=str, description="JSON blob with tool-specific structure")
+
 
 def _register_validators() -> None:
     from umwelt.sandbox.validators import CapabilityValidator, WorldValidator
