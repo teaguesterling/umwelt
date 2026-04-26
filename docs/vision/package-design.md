@@ -20,7 +20,7 @@
 - **Enforcement itself.** umwelt emits configs; it does not run delegates or gate tool calls. Runners are a thin convenience layer over subprocess invocation, not a core feature.
 - **Authoring tools.** v1 is read-only for the format. Programmatic view construction (AST → text) comes in v1.1 alongside the ratchet utility and view bank.
 - **Full `actor` and `policy` taxa.** v1 ships minimal `actor` entities (just `inferencer` and `executor`) and an empty `policy` taxon slot; full treatment is v1.1+.
-- **Cross-taxon validation invariants.** v1 validators run per-taxon. Rules like "if `tool[name='Bash']` is allowed then `resource[kind='wall-time']` must set a limit" are v1.1+.
+- **Cross-taxon validation invariants.** v1 validators run per-taxon. Rules like "if `tool[name='Bash']` is allowed then `resource` must declare a `wall-time` limit" are v1.1+.
 - **LLM-based anything.** No trained judgment anywhere in the package. The ratchet is specified end-to-end.
 
 ## The core / sandbox split

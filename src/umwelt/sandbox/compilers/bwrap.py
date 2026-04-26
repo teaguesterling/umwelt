@@ -2,7 +2,7 @@
 
 The compiler reads OS-altitude constructs from the resolved view and emits
 a flat list of bwrap command-line flags. Budget enforcement that bwrap
-can't express natively (memory, cpu, max-fds) goes into a separate
+can't express natively (memory, cpu-time, max-fds) goes into a separate
 wrapper command list (prlimit/timeout).
 
 Ordering per bwrap spec:
@@ -152,8 +152,8 @@ class BwrapCompiler:
         if props.get("wall-time"):
             secs = parse_time_seconds(props["wall-time"])
             result.wrapper.extend(["timeout", str(secs)])
-        if props.get("cpu"):
-            secs = parse_time_seconds(props["cpu"])
+        if props.get("cpu-time"):
+            secs = parse_time_seconds(props["cpu-time"])
             result.wrapper.extend(["prlimit", f"--cpu={secs}"])
         if props.get("max-fds"):
             result.wrapper.extend(["prlimit", f"--nofile={int(props['max-fds'])}"])

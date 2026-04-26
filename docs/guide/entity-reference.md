@@ -209,12 +209,13 @@ A single entity declaring runtime limits. Each limit is a property — the casca
 |---|---|---|---|
 | `memory` | str | <= (min) | Memory limit with unit (e.g. `512MB`, `1GB`) |
 | `wall-time` | str | <= (min) | Wall-clock time limit (e.g. `10m`, `1h`) |
-| `cpu` | str | <= (min) | CPU core limit (e.g. `2`, `0.5`) |
+| `cpu-time` | str | <= (min) | CPU time limit (e.g. `30s`, `5m`) |
 | `max-fds` | int | <= (min) | Maximum open file descriptors |
+| `tmpfs` | str | <= (min) | Tmpfs size for /tmp (e.g. `64MB`, `256MB`) |
 
 **Selector examples:**
 ```css
-resource { memory: 512MB; wall-time: 5m; cpu: 3; max-fds: 128; }
+resource { memory: 512MB; wall-time: 5m; cpu-time: 30s; max-fds: 128; }
 mode#implement resource { memory: 1GB; wall-time: 30m; }
 ```
 

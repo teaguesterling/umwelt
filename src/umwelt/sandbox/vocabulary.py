@@ -262,7 +262,7 @@ def _register_world() -> None:
     register_property(taxon="world", entity="dir", name="visible", value_type=bool, restrictive_direction="false", description="Whether the actor can see this dir.")
     register_property(taxon="world", entity="resource", name="memory", value_type=str, restrictive_direction="min", description="Memory limit with unit (e.g. 512MB, 1GB).")
     register_property(taxon="world", entity="resource", name="wall-time", value_type=str, restrictive_direction="min", description="Wall-clock time limit (e.g. 10m, 1h).")
-    register_property(taxon="world", entity="resource", name="cpu", value_type=str, restrictive_direction="min", description="CPU core limit (e.g. 2, 0.5).")
+    register_property(taxon="world", entity="resource", name="cpu-time", value_type=str, restrictive_direction="min", description="CPU time limit (e.g. 30s, 5m).")
     register_property(taxon="world", entity="resource", name="max-fds", value_type=int, restrictive_direction="min", description="Maximum open file descriptors.")
     register_property(taxon="world", entity="resource", name="tmpfs", value_type=str, restrictive_direction="min", description="Tmpfs size for /tmp (e.g. 64MB).")
     register_property(taxon="world", entity="network", name="deny", value_type=str, restrictive_direction="superset", description="Deny pattern ('*' for all).")
