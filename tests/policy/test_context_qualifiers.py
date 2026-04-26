@@ -188,3 +188,73 @@ class TestContextFilteredCheck:
             context=[("state", "mode", "review")],
             allow="true",
         )
+
+
+class TestDeprecatedModeStillWorks:
+    def test_mode_param_translates_to_context(self, context_engine):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            val_mode = context_engine.resolve(
+                type="tool", id="Bash", property="allow", mode="review",
+            )
+        val_ctx = context_engine.resolve(
+            type="tool", id="Bash", property="allow",
+            context=[("state", "mode", "review")],
+        )
+        assert val_mode == val_ctx
+
+    def test_mode_resolve_all(self, context_engine):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            tools_mode = context_engine.resolve_all(type="tool", mode="review")
+        tools_ctx = context_engine.resolve_all(
+            type="tool", context=[("state", "mode", "review")],
+        )
+        mode_bash = next(t for t in tools_mode if t["entity_id"] == "Bash")
+        ctx_bash = next(t for t in tools_ctx if t["entity_id"] == "Bash")
+        assert mode_bash["properties"] == ctx_bash["properties"]
+
+    def test_mode_trace(self, context_engine):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            result_mode = context_engine.trace(
+                type="tool", id="Bash", property="max-level", mode="implement",
+            )
+        result_ctx = context_engine.trace(
+            type="tool", id="Bash", property="max-level",
+            context=[("state", "mode", "implement")],
+        )
+        assert result_mode.value == result_ctx.value
+
+    def test_mode_check(self, context_engine):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            assert context_engine.check(
+                type="tool", id="Bash", mode="review", allow="false",
+            )
+
+    def test_mode_require(self, context_engine):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            context_engine.require(
+                type="tool", id="Read", mode="review", allow="true",
+            )
+
+    def test_mode_emits_deprecation_warning(self, context_engine):
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            context_engine.resolve(type="tool", id="Bash", property="allow", mode="review")
+        assert any(issubclass(x.category, DeprecationWarning) for x in w)
+
+    def test_mode_and_context_raises(self, context_engine):
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            context_engine.resolve(
+                type="tool", id="Bash", property="allow",
+                mode="review", context=[("state", "mode", "review")],
+            )

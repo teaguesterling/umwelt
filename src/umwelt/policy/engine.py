@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -192,6 +193,14 @@ class PolicyEngine:
         mode: str | None = None,
         context: list | dict | None = None,
     ) -> str | dict[str, str] | None:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         from umwelt.policy.queries import resolve_entity
 
         con = self._ensure_compiled()
@@ -203,6 +212,14 @@ class PolicyEngine:
         return result
 
     def resolve_all(self, *, type: str, mode: str | None = None, context: list | dict | None = None) -> list[dict]:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         from umwelt.policy.queries import resolve_all_entities
 
         con = self._ensure_compiled()
@@ -222,6 +239,14 @@ class PolicyEngine:
         mode: str | None = None,
         context: list | dict | None = None,
     ) -> TraceResult:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         from umwelt.policy.queries import trace_entity
 
         con = self._ensure_compiled()
@@ -244,6 +269,16 @@ class PolicyEngine:
         return run_lint(con)
 
     def check(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> bool:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            context = {"mode": mode}
+            mode = None
         for prop_name, expected_val in expected.items():
             actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
             if actual != expected_val:
@@ -251,6 +286,16 @@ class PolicyEngine:
         return True
 
     def require(self, *, type: str, id: str, mode: str | None = None, context: list | dict | None = None, **expected: str) -> None:
+        if mode is not None and context is not None:
+            raise ValueError("Cannot specify both mode= and context=")
+        if mode is not None:
+            warnings.warn(
+                "mode= is deprecated, use context={'mode': value} instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            context = {"mode": mode}
+            mode = None
         for prop_name, expected_val in expected.items():
             actual = self.resolve(type=type, id=id, property=prop_name, mode=mode, context=context)
             if actual != expected_val:
