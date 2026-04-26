@@ -23,6 +23,9 @@ def validate(view: View) -> View:
         rules = grouped.get(taxon.name, [])
         for validator in get_validators(taxon.name):
             validator.validate(rules, warnings_list)
+    from umwelt.registry.validators import get_cross_taxon_validators
+    for validator in get_cross_taxon_validators():
+        validator.validate(view, warnings_list)
     return View(
         rules=view.rules,
         unknown_at_rules=view.unknown_at_rules,

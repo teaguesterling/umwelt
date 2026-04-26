@@ -20,6 +20,23 @@ class ValidatorProtocol(Protocol):
         ...
 
 
+@runtime_checkable
+class CrossTaxonValidatorProtocol(Protocol):
+    """A validator that receives the full View across all taxa."""
+
+    def validate(self, view: Any, warnings: list[Any]) -> None: ...
+
+
+def register_cross_taxon_validator(validator: CrossTaxonValidatorProtocol) -> None:
+    state = _current_state()
+    state.cross_validators.append(validator)
+
+
+def get_cross_taxon_validators() -> list[CrossTaxonValidatorProtocol]:
+    state = _current_state()
+    return list(state.cross_validators)
+
+
 def register_validator(*, taxon: str, validator: ValidatorProtocol) -> None:
     get_taxon(taxon)
     canonical = resolve_taxon(taxon)

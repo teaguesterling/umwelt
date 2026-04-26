@@ -44,6 +44,8 @@ class RegistryState:
     matchers: dict[str, MatcherProtocol] = field(default_factory=dict)
     # Multiple validators per taxon allowed; they all run in registration order.
     validators: dict[str, list[ValidatorProtocol]] = field(default_factory=dict)
+    # Cross-taxon validators run after per-taxon validators, receiving the full View.
+    cross_validators: list[Any] = field(default_factory=list)
     # Keyed by shorthand key (e.g. "tools"). Values are ShorthandDef instances;
     # typed as Any to avoid a circular import with umwelt.world.shorthands.
     shorthands: dict[str, Any] = field(default_factory=dict)

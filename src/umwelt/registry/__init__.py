@@ -38,14 +38,18 @@ from umwelt.registry.taxa import (
 )
 from umwelt.registry.plugins import discover_plugins
 from umwelt.registry.validators import (
+    CrossTaxonValidatorProtocol,
     ValidatorProtocol,
+    get_cross_taxon_validators,
     get_validators,
+    register_cross_taxon_validator,
     register_validator,
 )
 
 __all__ = [
     "AttrSchema",
     "CompositeMatcher",
+    "CrossTaxonValidatorProtocol",
     "discover_plugins",
     "EntitySchema",
     "MatcherProtocol",
@@ -53,6 +57,7 @@ __all__ = [
     "RegistryState",
     "TaxonSchema",
     "ValidatorProtocol",
+    "get_cross_taxon_validators",
     "get_entity",
     "get_matcher",
     "get_property",
@@ -61,6 +66,7 @@ __all__ = [
     "list_entities",
     "list_properties",
     "list_taxa",
+    "register_cross_taxon_validator",
     "register_entity",
     "register_matcher",
     "register_property",
