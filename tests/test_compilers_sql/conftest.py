@@ -38,7 +38,7 @@ def populated_db(db):
         (10, "world", "dir",  "src",                None, json.dumps({"path": "src", "name": "src"}), None, 0),
         (11, "world", "dir",  "tests",              None, json.dumps({"path": "tests", "name": "tests"}), None, 0),
         # world: resource (singleton block)
-        (20, "world", "resource", "resource",       None, json.dumps({"name": "resource"}), None, 0),
+        (20, "world", "resource", None,             None, json.dumps({}), None, 0),
         # world: network
         (25, "world", "network", None,               None, json.dumps({}), None, 0),
         # world: exec

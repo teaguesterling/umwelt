@@ -256,5 +256,5 @@ class TestFullPolicy:
         assert "pytest *" in patterns
 
         assert rv.property_by_id(25, "deny") == "*"
-        assert rv.property("resource", "memory") == "512MB"
+        assert rv.property_by_id(20, "memory") == "512MB"
         rv.assert_a1()

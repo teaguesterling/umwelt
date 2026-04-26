@@ -94,10 +94,6 @@ class TestAttributeSelectors:
         sql = compile_selector(parse_selector('tool[altitude="os"]'), DIALECT)
         assert query_ids(populated_db, sql) == {40, 41, 42, 43, 45, 46}
 
-    def test_resource_name_attribute(self, populated_db):
-        sql = compile_selector(parse_selector('resource[name="resource"]'), DIALECT)
-        assert query_ids(populated_db, sql) == {20}
-
 
 # ============================================================================
 # Level 4: Class selectors

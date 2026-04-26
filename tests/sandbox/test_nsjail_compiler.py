@@ -129,6 +129,20 @@ def test_tmpfs_resource():
     assert 'options: "size=64M"' in output
 
 
+def test_all_resource_limits_on_single_entity():
+    rv = ResolvedView()
+    rv.add("world", ResourceEntity(), {
+        "memory": "1GB", "wall-time": "5m", "cpu": "30s",
+        "max-fds": "256", "tmpfs": "128MB",
+    })
+    output = NsjailCompiler().compile(rv)
+    assert "rlimit_as: 1024" in output
+    assert "time_limit: 300" in output
+    assert "rlimit_cpu: 30" in output
+    assert "rlimit_nofile: 256" in output
+    assert 'options: "size=128M"' in output
+
+
 def test_resource_without_limits_is_skipped():
     rv = ResolvedView()
     rv.add("world", ResourceEntity(), {})
