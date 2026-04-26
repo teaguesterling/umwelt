@@ -443,8 +443,12 @@ class PolicyEngine:
 
 
 def _load_default_vocabulary() -> None:
-    try:
-        from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
-        register_sandbox_vocabulary()
-    except ImportError:
-        pass
+    from umwelt.registry.plugins import discover_plugins
+    loaded = discover_plugins()
+    # Fallback: if sandbox wasn't loaded via entry point, import directly.
+    if "sandbox" not in loaded:
+        try:
+            from umwelt.sandbox.vocabulary import register_sandbox_vocabulary
+            register_sandbox_vocabulary()
+        except ImportError:
+            pass

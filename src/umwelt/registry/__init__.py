@@ -36,6 +36,7 @@ from umwelt.registry.taxa import (
     registry_scope,
     resolve_taxon,
 )
+from umwelt.registry.plugins import discover_plugins
 from umwelt.registry.validators import (
     ValidatorProtocol,
     get_validators,
@@ -45,6 +46,7 @@ from umwelt.registry.validators import (
 __all__ = [
     "AttrSchema",
     "CompositeMatcher",
+    "discover_plugins",
     "EntitySchema",
     "MatcherProtocol",
     "PropertySchema",

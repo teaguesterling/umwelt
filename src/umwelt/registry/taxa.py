@@ -66,7 +66,12 @@ def register_taxon(
     """Register a taxon with the active registry scope."""
     state = _current_state()
     if name in state.taxa:
-        raise RegistryError(f"taxon {name!r} already registered")
+        existing = state.taxa[name]
+        if existing.description == description:
+            return  # idempotent
+        raise RegistryError(
+            f"taxon {name!r} already registered with conflicting description"
+        )
     state.taxa[name] = TaxonSchema(
         name=name,
         description=description,
