@@ -67,14 +67,63 @@ class MatcherProtocol(Protocol):
         ...
 
 
+class CompositeMatcher:
+    """Delegates to multiple matchers for the same taxon.
+
+    Auto-created when register_matcher() is called twice for the same taxon.
+    Union semantics for match_type/children, OR for condition_met,
+    first-non-None for get_id/get_attribute.
+    """
+
+    def __init__(self, *delegates: MatcherProtocol):
+        self._delegates: list[MatcherProtocol] = list(delegates)
+
+    def add(self, matcher: MatcherProtocol) -> None:
+        self._delegates.append(matcher)
+
+    def match_type(self, type_name: str, context: Any = None) -> list[Any]:
+        results: list[Any] = []
+        for d in self._delegates:
+            results.extend(d.match_type(type_name, context))
+        return results
+
+    def children(self, parent: Any, child_type: str) -> list[Any]:
+        results: list[Any] = []
+        for d in self._delegates:
+            results.extend(d.children(parent, child_type))
+        return results
+
+    def condition_met(self, selector: Any, context: Any = None) -> bool:
+        return any(d.condition_met(selector, context) for d in self._delegates)
+
+    def get_attribute(self, entity: Any, name: str) -> Any:
+        for d in self._delegates:
+            val = d.get_attribute(entity, name)
+            if val is not None:
+                return val
+        return None
+
+    def get_id(self, entity: Any) -> str | None:
+        for d in self._delegates:
+            val = d.get_id(entity)
+            if val is not None:
+                return val
+        return None
+
+
 def register_matcher(*, taxon: str, matcher: MatcherProtocol) -> None:
-    """Register a matcher for a taxon. Resolves taxon aliases."""
+    """Register a matcher for a taxon. Auto-composes on collision."""
     get_taxon(taxon)  # raises if unknown
     canonical = resolve_taxon(taxon)
     state = _current_state()
     if canonical in state.matchers:
-        raise RegistryError(f"matcher for taxon {taxon!r} already registered")
-    state.matchers[canonical] = matcher
+        existing = state.matchers[canonical]
+        if isinstance(existing, CompositeMatcher):
+            existing.add(matcher)
+        else:
+            state.matchers[canonical] = CompositeMatcher(existing, matcher)
+    else:
+        state.matchers[canonical] = matcher
 
 
 def get_matcher(taxon: str) -> MatcherProtocol:

@@ -14,6 +14,7 @@ from umwelt.registry.entities import (
     resolve_entity_type,
 )
 from umwelt.registry.matchers import (
+    CompositeMatcher,
     MatcherProtocol,
     get_matcher,
     register_matcher,
@@ -43,6 +44,7 @@ from umwelt.registry.validators import (
 
 __all__ = [
     "AttrSchema",
+    "CompositeMatcher",
     "EntitySchema",
     "MatcherProtocol",
     "PropertySchema",
