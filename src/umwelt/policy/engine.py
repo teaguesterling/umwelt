@@ -42,11 +42,35 @@ class LintWarning:
 class PolicyEngine:
     """Consumer-facing API for querying resolved world knowledge."""
 
-    def __init__(self) -> None:
+    def __init__(self, lint_mode: str | dict | None = None) -> None:
         self._con: sqlite3.Connection | None = None
         self._pending_entities: list[dict[str, Any]] = []
         self._pending_stylesheets: list[str] = []
         self._compiled = False
+        self._lint_mode = lint_mode
+        self._lint_config = self._resolve_lint_config(lint_mode)
+
+    @staticmethod
+    def _resolve_lint_config(lint_mode: str | dict | None) -> Any:
+        import os
+
+        from umwelt.policy.lint import LintConfig
+
+        if lint_mode is None:
+            lint_mode = os.environ.get("UMWELT_LINT", "off")
+        return LintConfig.from_lint_mode(lint_mode)
+
+    def _run_compile_lint(self) -> None:
+        if self._lint_config.default == "off" and not self._lint_config.overrides:
+            return
+        from umwelt.policy.lint import process_lint_results, run_lint
+
+        con = self._con
+        if con is None:
+            return
+        lint_warnings = run_lint(con)
+        if lint_warnings:
+            process_lint_results(lint_warnings, self._lint_config)
 
     @classmethod
     def from_files(
@@ -54,6 +78,7 @@ class PolicyEngine:
         *,
         world: str | Path,
         stylesheet: str | Path,
+        lint_mode: str | dict | None = None,
     ) -> PolicyEngine:
         from umwelt.compilers.sql.compiler import compile_view
         from umwelt.compilers.sql.dialects import SQLiteDialect
@@ -101,6 +126,9 @@ class PolicyEngine:
         engine._pending_entities = []
         engine._pending_stylesheets = []
         engine._compiled = True
+        engine._lint_mode = lint_mode
+        engine._lint_config = cls._resolve_lint_config(lint_mode)
+        engine._run_compile_lint()
 
         logger.info(
             "compile",
@@ -112,7 +140,7 @@ class PolicyEngine:
         return engine
 
     @classmethod
-    def from_db(cls, path: str | Path) -> PolicyEngine:
+    def from_db(cls, path: str | Path, lint_mode: str | dict | None = None) -> PolicyEngine:
         source = sqlite3.connect(str(path))
         con = sqlite3.connect(":memory:")
         source.backup(con)
@@ -123,6 +151,9 @@ class PolicyEngine:
         engine._pending_entities = []
         engine._pending_stylesheets = []
         engine._compiled = True
+        engine._lint_mode = lint_mode
+        engine._lint_config = cls._resolve_lint_config(lint_mode)
+        engine._run_compile_lint()
         return engine
 
     def add_entities(self, entities: list[dict[str, Any]]) -> None:
@@ -188,6 +219,7 @@ class PolicyEngine:
 
         self._con = con
         self._compiled = True
+        self._run_compile_lint()
         return con
 
     @staticmethod
@@ -302,6 +334,7 @@ class PolicyEngine:
         *,
         entities: list[dict[str, Any]] | None = None,
         stylesheet: str | None = None,
+        lint_mode: str | dict | None = None,
     ) -> PolicyEngine:
         con = self._ensure_compiled()
 
@@ -313,6 +346,9 @@ class PolicyEngine:
         new_engine._pending_entities = list(entities) if entities else []
         new_engine._pending_stylesheets = [stylesheet] if stylesheet else []
         new_engine._compiled = False
+        effective_lint = lint_mode if lint_mode is not None else self._lint_mode
+        new_engine._lint_mode = effective_lint
+        new_engine._lint_config = self._resolve_lint_config(effective_lint)
 
         if new_engine._pending_entities or new_engine._pending_stylesheets:
             new_engine._recompile_incremental()
@@ -410,6 +446,7 @@ class PolicyEngine:
             logger.debug("projection views skipped", exc_info=True)
 
         self._compiled = True
+        self._run_compile_lint()
 
     def save(self, path: str | Path) -> None:
         con = self._ensure_compiled()
