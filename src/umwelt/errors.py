@@ -75,3 +75,14 @@ class PolicyDenied(PolicyError):
 
 class PolicyCompilationError(PolicyError):
     """Raised when compilation of policy sources fails."""
+
+
+class PolicyLintError(PolicyError):
+    """Raised when lint smells fire at error severity."""
+
+    def __init__(self, warnings: list) -> None:
+        self.warnings = warnings
+        descriptions = "; ".join(
+            f"{w.smell}: {w.description}" for w in warnings
+        )
+        super().__init__(f"Lint errors: {descriptions}")

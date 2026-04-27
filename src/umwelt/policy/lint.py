@@ -4,30 +4,73 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import warnings as warnings_mod
+from dataclasses import dataclass, field
+from typing import Any
 
+from umwelt.errors import PolicyLintError
 from umwelt.policy.engine import LintWarning
 
 logger = logging.getLogger("umwelt.policy")
 
 
-def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
-    warnings: list[LintWarning] = []
-    warnings.extend(_detect_narrow_win(con))
-    warnings.extend(_detect_shadowed_rule(con))
-    warnings.extend(_detect_conflicting_intent(con))
-    warnings.extend(_detect_uncovered_entity(con))
-    warnings.extend(_detect_specificity_escalation(con))
-    warnings.extend(_detect_fixed_override(con))
-    warnings.extend(_detect_unrealizable_altitude(con))
+@dataclass(frozen=True)
+class LintConfig:
+    default: str
+    overrides: dict[str, str] = field(default_factory=dict)
 
-    for w in warnings:
-        logger.warning(
-            "lint: %s — %s",
-            w.smell,
-            w.description,
-            extra={"smell": w.smell, "entities": w.entities, "severity": w.severity},
-        )
-    return warnings
+    @classmethod
+    def from_lint_mode(cls, mode: str | dict[str, Any]) -> LintConfig:
+        if isinstance(mode, str):
+            return cls(default=mode, overrides={})
+        default = mode.get("default", "warn")
+        overrides: dict[str, str] = {}
+        for level in ("error", "warn", "notice", "off"):
+            for smell in mode.get(level, []):
+                overrides[smell] = level
+        return cls(default=default, overrides=overrides)
+
+    def severity_for(self, smell: str) -> str:
+        return self.overrides.get(smell, self.default)
+
+
+def process_lint_results(
+    lint_warnings: list[LintWarning], config: LintConfig,
+) -> list[LintWarning]:
+    errors: list[LintWarning] = []
+    kept: list[LintWarning] = []
+    for w in lint_warnings:
+        effective = config.severity_for(w.smell)
+        if effective == "off":
+            continue
+        elif effective == "notice":
+            logger.info("lint [notice]: %s — %s", w.smell, w.description)
+            kept.append(w)
+        elif effective == "warn":
+            warnings_mod.warn(
+                f"umwelt lint: {w.smell} — {w.description}",
+                UserWarning,
+                stacklevel=2,
+            )
+            kept.append(w)
+        elif effective == "error":
+            errors.append(w)
+            kept.append(w)
+    if errors:
+        raise PolicyLintError(errors)
+    return kept
+
+
+def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
+    results: list[LintWarning] = []
+    results.extend(_detect_narrow_win(con))
+    results.extend(_detect_shadowed_rule(con))
+    results.extend(_detect_conflicting_intent(con))
+    results.extend(_detect_uncovered_entity(con))
+    results.extend(_detect_specificity_escalation(con))
+    results.extend(_detect_fixed_override(con))
+    results.extend(_detect_unrealizable_altitude(con))
+    return results
 
 
 def _detect_narrow_win(con: sqlite3.Connection) -> list[LintWarning]:
