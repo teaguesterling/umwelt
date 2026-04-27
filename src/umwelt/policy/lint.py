@@ -70,6 +70,11 @@ def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
     results.extend(_detect_specificity_escalation(con))
     results.extend(_detect_fixed_override(con))
     results.extend(_detect_unrealizable_altitude(con))
+    results.extend(_detect_cross_axis_dominance(con))
+    results.extend(_detect_ceiling_ineffective(con))
+    results.extend(_detect_specificity_tie(con))
+    results.extend(_detect_cross_axis_tie(con))
+    results.extend(_detect_ceiling_conflict(con))
     return results
 
 
@@ -352,4 +357,214 @@ def _detect_unrealizable_altitude(con: sqlite3.Connection) -> list[LintWarning]:
                 continue
     except ImportError:
         pass
+    return warnings
+
+
+def _detect_cross_axis_dominance(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when a cross-axis rule dominates a single-axis selector."""
+    warnings: list[LintWarning] = []
+    rows = con.execute("""
+        SELECT cc.entity_id, cc.property_name, cc.property_value, cc.specificity, cc.rule_index
+        FROM cascade_candidates cc
+        WHERE cc.comparison = 'exact'
+        ORDER BY cc.entity_id, cc.property_name, cc.specificity DESC, cc.rule_index DESC
+    """).fetchall()
+
+    groups: dict[tuple[int, str], list[tuple]] = {}
+    for row in rows:
+        key = (row[0], row[1])
+        groups.setdefault(key, []).append(row)
+
+    for (entity_id, prop_name), candidates in groups.items():
+        if len(candidates) < 2:
+            continue
+        winner_spec = _parse_specificity(candidates[0][3])
+        runner_spec = _parse_specificity(candidates[1][3])
+        if winner_spec is None or runner_spec is None:
+            continue
+        winner_cross = winner_spec[0]
+        runner_cross = runner_spec[0]
+        if winner_cross > 0 and runner_cross == 0 and candidates[0][2] != candidates[1][2]:
+            entity_name = _entity_name(con, entity_id)
+            warnings.append(LintWarning(
+                smell="cross_axis_dominance",
+                severity="warning",
+                description=(
+                    f"{entity_name} '{prop_name}': cross-axis rule dominates"
+                    f" single-axis selector — value '{candidates[0][2]}'"
+                    f" overrides '{candidates[1][2]}'"
+                ),
+                entities=(entity_name,),
+                property=prop_name,
+            ))
+    return warnings
+
+
+def _detect_ceiling_ineffective(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when a higher-specificity ceiling is looser than a lower one."""
+    warnings: list[LintWarning] = []
+    rows = con.execute("""
+        SELECT entity_id, property_name, property_value, specificity
+        FROM cascade_candidates
+        WHERE comparison = '<='
+        ORDER BY entity_id, property_name, specificity ASC
+    """).fetchall()
+
+    groups: dict[tuple[int, str], list[tuple[str, str]]] = {}
+    for entity_id, prop_name, prop_value, spec in rows:
+        key = (entity_id, prop_name)
+        groups.setdefault(key, []).append((prop_value, spec))
+
+    for (entity_id, prop_name), entries in groups.items():
+        if len(entries) < 2:
+            continue
+        # entries are ordered by specificity ASC — track tightest ceiling seen so far
+        tightest = int(entries[0][0])
+        for value, spec in entries[1:]:
+            int_val = int(value)
+            if int_val > tightest:
+                # Higher-specificity rule has a looser ceiling — it's ineffective
+                entity_name = _entity_name(con, entity_id)
+                warnings.append(LintWarning(
+                    smell="ceiling_ineffective",
+                    severity="notice",
+                    description=(
+                        f"{entity_name} '{prop_name}': value '{value}'"
+                        f" at higher specificity is ineffective"
+                        f" — ceiling clamped to '{tightest}'"
+                        f" by lower-specificity rule"
+                    ),
+                    entities=(entity_name,),
+                    property=prop_name,
+                ))
+                break
+            tightest = min(tightest, int_val)
+    return warnings
+
+
+def _detect_specificity_tie(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when two rules with same specificity AND same rule_index compete."""
+    warnings: list[LintWarning] = []
+    rows = con.execute("""
+        SELECT c1.entity_id, c1.property_name,
+               c1.property_value, c2.property_value,
+               c1.specificity
+        FROM cascade_candidates c1
+        JOIN cascade_candidates c2
+            ON c1.entity_id = c2.entity_id
+            AND c1.property_name = c2.property_name
+            AND c1.specificity = c2.specificity
+            AND c1.rule_index = c2.rule_index
+            AND c1.rowid < c2.rowid
+        WHERE c1.property_value != c2.property_value
+          AND c1.comparison = 'exact'
+          AND c2.comparison = 'exact'
+    """).fetchall()
+
+    seen: set[tuple[int, str]] = set()
+    for entity_id, prop_name, val1, val2, _spec in rows:
+        key = (entity_id, prop_name)
+        if key in seen:
+            continue
+        seen.add(key)
+        entity_name = _entity_name(con, entity_id)
+        warnings.append(LintWarning(
+            smell="specificity_tie",
+            severity="warning",
+            description=(
+                f"{entity_name} '{prop_name}': specificity tie"
+                f" between '{val1}' and '{val2}'"
+                f" — resolution order is nondeterministic"
+            ),
+            entities=(entity_name,),
+            property=prop_name,
+        ))
+    return warnings
+
+
+def _detect_cross_axis_tie(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when competing rules come from different cross-axes."""
+    warnings: list[LintWarning] = []
+    rows = con.execute("""
+        SELECT c1.entity_id, c1.property_name,
+               c1.property_value, c2.property_value,
+               c1.rowid AS r1, c2.rowid AS r2
+        FROM cascade_candidates c1
+        JOIN cascade_candidates c2
+            ON c1.entity_id = c2.entity_id
+            AND c1.property_name = c2.property_name
+            AND c1.rowid < c2.rowid
+        WHERE c1.property_value != c2.property_value
+          AND c1.comparison = 'exact'
+          AND c2.comparison = 'exact'
+    """).fetchall()
+
+    for entity_id, prop_name, val1, val2, r1, r2 in rows:
+        quals1 = con.execute(
+            "SELECT taxon, type_name FROM cascade_context_qualifiers WHERE candidate_rowid = ?",
+            (r1,),
+        ).fetchall()
+        quals2 = con.execute(
+            "SELECT taxon, type_name FROM cascade_context_qualifiers WHERE candidate_rowid = ?",
+            (r2,),
+        ).fetchall()
+        if not quals1 or not quals2:
+            continue
+        axes1 = {(t, tn) for t, tn in quals1}
+        axes2 = {(t, tn) for t, tn in quals2}
+        if axes1 != axes2 and not axes1.issubset(axes2) and not axes2.issubset(axes1):
+            entity_name = _entity_name(con, entity_id)
+            axis1_str = ", ".join(f"{tn}" for _, tn in sorted(axes1))
+            axis2_str = ", ".join(f"{tn}" for _, tn in sorted(axes2))
+            warnings.append(LintWarning(
+                smell="cross_axis_tie",
+                severity="warning",
+                description=(
+                    f"{entity_name} '{prop_name}': cross-axis rules"
+                    f" from different axes compete"
+                    f" — {axis1_str} ({val1}) vs {axis2_str} ({val2})"
+                ),
+                entities=(entity_name,),
+                property=prop_name,
+            ))
+    return warnings
+
+
+def _detect_ceiling_conflict(con: sqlite3.Connection) -> list[LintWarning]:
+    """Warn when competing ceiling values exist at the same specificity."""
+    warnings: list[LintWarning] = []
+    rows = con.execute("""
+        SELECT c1.entity_id, c1.property_name,
+               c1.property_value, c2.property_value,
+               c1.specificity
+        FROM cascade_candidates c1
+        JOIN cascade_candidates c2
+            ON c1.entity_id = c2.entity_id
+            AND c1.property_name = c2.property_name
+            AND c1.specificity = c2.specificity
+            AND c1.rule_index < c2.rule_index
+        WHERE c1.property_value != c2.property_value
+          AND c1.comparison = '<='
+          AND c2.comparison = '<='
+    """).fetchall()
+
+    seen: set[tuple[int, str]] = set()
+    for entity_id, prop_name, val1, val2, _spec in rows:
+        key = (entity_id, prop_name)
+        if key in seen:
+            continue
+        seen.add(key)
+        min_val = min(val1, val2, key=lambda v: int(v))
+        entity_name = _entity_name(con, entity_id)
+        warnings.append(LintWarning(
+            smell="ceiling_conflict",
+            severity="notice",
+            description=(
+                f"{entity_name} '{prop_name}': competing ceiling values"
+                f" '{val1}' and '{val2}' at same specificity"
+                f" — MIN ('{min_val}') wins regardless of order"
+            ),
+            entities=(entity_name,),
+            property=prop_name,
+        ))
     return warnings
