@@ -367,6 +367,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_check.add_argument("file", help="path to a .umw view file")
     p_check.set_defaults(func=_cmd_check)
+    p_check.add_argument(
+        "--lint", default=None, choices=["off", "notice", "warn", "error"],
+        help="lint severity level (default: off unless UMWELT_LINT is set)",
+    )
 
     p_dry = subparsers.add_parser(
         "dry-run", help="resolve a view and print per-entity cascaded properties"
@@ -377,6 +381,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="named world environment to resolve against (e.g. dev, ci)",
     )
     p_dry.set_defaults(func=_cmd_dry_run)
+    p_dry.add_argument(
+        "--lint", default=None, choices=["off", "notice", "warn", "error"],
+        help="lint severity level (default: off unless UMWELT_LINT is set)",
+    )
 
     p_audit = subparsers.add_parser(
         "audit", help="security-aware policy audit with widening detection"
@@ -408,6 +416,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="database connection string or file path (executes SQL)",
     )
     p_compile.set_defaults(func=_cmd_compile)
+    p_compile.add_argument(
+        "--lint", default=None, choices=["off", "notice", "warn", "error"],
+        help="lint severity level (default: off unless UMWELT_LINT is set)",
+    )
 
     p_mat = subparsers.add_parser("materialize", help="materialize a .world.yml file")
     p_mat.add_argument("file", help="path to a .world.yml file")
