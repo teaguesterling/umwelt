@@ -106,8 +106,8 @@ class TestUncoveredEntity:
         assert any("Orphan" in w.description for w in uncovered)
 
 
-class TestConflictingIntent:
-    def test_detects_conflicting_intent(self, lint_db):
+class TestSourceOrderDependence:
+    def test_detects_source_order_dependence(self, lint_db):
         dialect = SQLiteDialect()
         spec = '["00000","00000","00000","00001","00000","00000","00000","00000"]'
 
@@ -125,8 +125,8 @@ class TestConflictingIntent:
         create_resolution_views(lint_db, dialect)
 
         warnings = run_lint(lint_db)
-        conflicting = [w for w in warnings if w.smell == "conflicting_intent"]
-        assert len(conflicting) >= 1
+        source_order = [w for w in warnings if w.smell == "source_order_dependence"]
+        assert len(source_order) >= 1
 
 
 class TestSpecificityEscalation:

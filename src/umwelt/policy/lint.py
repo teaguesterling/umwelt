@@ -65,7 +65,7 @@ def run_lint(con: sqlite3.Connection) -> list[LintWarning]:
     results: list[LintWarning] = []
     results.extend(_detect_narrow_win(con))
     results.extend(_detect_shadowed_rule(con))
-    results.extend(_detect_conflicting_intent(con))
+    results.extend(_detect_source_order_dependence(con))
     results.extend(_detect_uncovered_entity(con))
     results.extend(_detect_specificity_escalation(con))
     results.extend(_detect_fixed_override(con))
@@ -144,7 +144,7 @@ def _detect_shadowed_rule(con: sqlite3.Connection) -> list[LintWarning]:
     return warnings
 
 
-def _detect_conflicting_intent(con: sqlite3.Connection) -> list[LintWarning]:
+def _detect_source_order_dependence(con: sqlite3.Connection) -> list[LintWarning]:
     warnings: list[LintWarning] = []
 
     rows = con.execute("""
@@ -170,11 +170,11 @@ def _detect_conflicting_intent(con: sqlite3.Connection) -> list[LintWarning]:
         seen.add(key)
         entity_name = _entity_name(con, entity_id)
         warnings.append(LintWarning(
-            smell="conflicting_intent",
+            smell="source_order_dependence",
             severity="warning",
             description=(
                 f"{entity_name} '{prop_name}': '{val1}' vs '{val2}'"
-                " at same specificity — winner decided by source order"
+                " at same specificity — resolved by source order (later rule wins)"
             ),
             entities=(entity_name,),
             property=prop_name,
