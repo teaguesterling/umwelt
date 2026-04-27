@@ -420,7 +420,7 @@ def _detect_ceiling_ineffective(con: sqlite3.Connection) -> list[LintWarning]:
             continue
         # entries are ordered by specificity ASC — track tightest ceiling seen so far
         tightest = int(entries[0][0])
-        for value, spec in entries[1:]:
+        for value, _spec in entries[1:]:
             int_val = int(value)
             if int_val > tightest:
                 # Higher-specificity rule has a looser ceiling — it's ineffective
