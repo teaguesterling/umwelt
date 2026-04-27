@@ -79,6 +79,9 @@ class PolicyEngine:
         con.executescript(create_schema(dialect))
         populate_from_world(con, world_file)
         compile_view(con, view, dialect, source_file=str(stylesheet_path))
+        _store_stylesheet_source(
+            con, stylesheet_path.read_text(), str(stylesheet_path), len(view.rules),
+        )
 
         try:
             create_projection_views(con)
@@ -170,9 +173,12 @@ class PolicyEngine:
             populate_from_world(con, wf)
             self._pending_entities = []
 
+        offset = 0
         for css_text in self._pending_stylesheets:
             view = parse_css(css_text, validate=False)
-            compile_view(con, view, dialect)
+            compile_view(con, view, dialect, rule_index_offset=offset)
+            _store_stylesheet_source(con, css_text, "", len(view.rules))
+            offset += len(view.rules)
         self._pending_stylesheets = []
 
         try:
@@ -337,6 +343,7 @@ class PolicyEngine:
         con = self._con
         dialect = SQLiteDialect()
 
+        had_new_entities = bool(self._pending_entities)
         if self._pending_entities:
             declared = []
             for e in self._pending_entities:
@@ -356,20 +363,38 @@ class PolicyEngine:
             "resolved_properties", "_resolved_exact",
             "_resolved_cap", "_resolved_pattern",
         )
-        for view_name in _resolution_views:
+        _all_views = _resolution_views + ("effective_properties",)
+        for view_name in _all_views:
             con.execute(f'DROP VIEW IF EXISTS "{view_name}"')
 
-        had_stylesheets = bool(self._pending_stylesheets)
-        for css_text in self._pending_stylesheets:
-            view = parse_css(css_text, validate=False)
-            compile_view(con, view, dialect)
+        if had_new_entities:
+            con.execute("DELETE FROM cascade_candidates")
+            con.execute("DELETE FROM cascade_context_qualifiers")
+            stored = con.execute(
+                "SELECT css_text, source_file, rule_count FROM _stylesheet_sources ORDER BY id"
+            ).fetchall()
+            offset = 0
+            for css_text, source_file, rule_count in stored:
+                view = parse_css(css_text, validate=False)
+                compile_view(con, view, dialect, source_file=source_file,
+                             rule_index_offset=offset)
+                offset += len(view.rules)
+            for css_text in self._pending_stylesheets:
+                view = parse_css(css_text, validate=False)
+                compile_view(con, view, dialect, rule_index_offset=offset)
+                _store_stylesheet_source(con, css_text, "", len(view.rules))
+                offset += len(view.rules)
+        else:
+            max_rule_idx = con.execute(
+                "SELECT COALESCE(MAX(rule_index), -1) FROM cascade_candidates"
+            ).fetchone()[0]
+            offset = max_rule_idx + 1
+            for css_text in self._pending_stylesheets:
+                view = parse_css(css_text, validate=False)
+                compile_view(con, view, dialect, rule_index_offset=offset)
+                _store_stylesheet_source(con, css_text, "", len(view.rules))
+                offset += len(view.rules)
         self._pending_stylesheets = []
-
-        if not had_stylesheets:
-            try:
-                con.execute("SELECT 1 FROM resolved_properties LIMIT 1")
-            except sqlite3.OperationalError:
-                create_resolution_views(con, dialect)
 
         for view_name in ("resolved_entities",):
             con.execute(f'DROP VIEW IF EXISTS "{view_name}"')
@@ -466,6 +491,20 @@ class PolicyEngine:
     def execute(self, sql: str, params: tuple = ()) -> list[tuple]:
         con = self._ensure_compiled()
         return con.execute(sql, params).fetchall()
+
+
+def _store_stylesheet_source(
+    con: sqlite3.Connection, css_text: str, source_file: str, rule_count: int,
+) -> None:
+    try:
+        con.execute(
+            "INSERT INTO _stylesheet_sources (css_text, source_file, rule_count) "
+            "VALUES (?, ?, ?)",
+            (css_text, source_file, rule_count),
+        )
+        con.commit()
+    except Exception:
+        logger.debug("stylesheet source storage skipped", exc_info=True)
 
 
 def _load_default_vocabulary() -> None:

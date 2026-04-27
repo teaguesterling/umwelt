@@ -225,12 +225,38 @@ def _process_fixed_constraints(con, fixed_raw):
 
 
 def _match_fixed_selector(con, selector_str):
+    import warnings
+
     if "#" in selector_str:
         type_name, entity_id = selector_str.split("#", 1)
         rows = con.execute(
             "SELECT id FROM entities WHERE type_name = ? AND entity_id = ?",
             (type_name, entity_id),
         ).fetchall()
+    elif "." in selector_str:
+        type_name, class_name = selector_str.split(".", 1)
+        if type_name:
+            rows = con.execute(
+                "SELECT id FROM entities WHERE type_name = ? "
+                "AND json_array_length(classes) > 0 "
+                "AND EXISTS (SELECT 1 FROM json_each(classes) WHERE value = ?)",
+                (type_name, class_name),
+            ).fetchall()
+        else:
+            rows = con.execute(
+                "SELECT id FROM entities "
+                "WHERE json_array_length(classes) > 0 "
+                "AND EXISTS (SELECT 1 FROM json_each(classes) WHERE value = ?)",
+                (class_name,),
+            ).fetchall()
+    elif "[" in selector_str:
+        warnings.warn(
+            f"fixed constraint selector '{selector_str}' uses attribute syntax "
+            f"which is not supported; constraint will not be applied",
+            UserWarning,
+            stacklevel=3,
+        )
+        return []
     else:
         rows = con.execute(
             "SELECT id FROM entities WHERE type_name = ?",

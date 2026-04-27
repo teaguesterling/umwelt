@@ -20,6 +20,7 @@ EXPECTED_TABLES = [
     "cascade_candidates",
     "cascade_context_qualifiers",
     "fixed_constraints",
+    "_stylesheet_sources",
 ]
 
 
@@ -135,5 +136,14 @@ CREATE TABLE IF NOT EXISTS fixed_constraints (
 );
 
 CREATE INDEX IF NOT EXISTS idx_fc_entity_prop ON fixed_constraints(entity_id, property_name);""")
+
+    # -- Stylesheet sources (for replay on extend)
+    sections.append(f"""
+CREATE TABLE IF NOT EXISTS _stylesheet_sources (
+    id              {autoincrement},
+    css_text        {text_type} NOT NULL,
+    source_file     {text_type} NOT NULL DEFAULT '',
+    rule_count      {int_type} NOT NULL DEFAULT 0
+);""")
 
     return "\n".join(sections)

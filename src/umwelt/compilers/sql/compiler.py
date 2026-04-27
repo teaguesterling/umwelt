@@ -158,11 +158,12 @@ def compile_view(
     view: View,
     dialect: Dialect,
     source_file: str = "",
+    rule_index_offset: int = 0,
 ) -> None:
     """Compile a parsed View into cascade_candidates rows + resolution views."""
     from umwelt.compilers.sql.resolution import create_resolution_views
 
-    for rule_idx, rule in enumerate(view.rules):
+    for rule_idx, rule in enumerate(view.rules, start=rule_index_offset):
         for selector in rule.selectors:
             where_sql = compile_selector(selector, dialect)
             spec = selector.specificity if hasattr(selector, "specificity") else (0,) * 8
