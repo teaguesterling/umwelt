@@ -365,17 +365,19 @@ Each `LintWarning` has: `type` (string), `severity` ("info" | "warning"), `descr
 
 ### Smell catalog
 
+> **Note:** This was the original 5-smell catalog. The lint system has since been extended to 12 detectors with a configurable severity system (`LintConfig`). See `docs/superpowers/specs/2026-04-27-lint-strict-mode-design.md` for the full catalog and `docs/guide/policy-engine.md` for the current API.
+
 | Smell | Detection | Severity |
 |---|---|---|
 | **narrow_win** | Winner's specificity minus runner-up's specificity ≤ 1 position | warning |
-| **shadowed_rule** | A (source_file, source_line) pair appears in cascade_candidates but never appears in resolved_properties | info |
-| **conflicting_intent** | Two candidates for same (entity, property) have opposite values (e.g., "true" vs "false") and the winner won by source order alone (equal specificity) | warning |
-| **uncovered_entity** | Entity exists in entities table but has zero rows in resolved_properties | info |
+| **shadowed_rule** | A (source_file, source_line) pair appears in cascade_candidates but never appears in resolved_properties | notice |
+| **source_order_dependence** | Two candidates for same (entity, property) have different values and the winner won by source order alone (equal specificity) | warning |
+| **uncovered_entity** | Entity exists in entities table but has zero rows in resolved_properties | notice |
 | **specificity_escalation** | 3+ candidates for same (entity, property) with strictly increasing specificity | warning |
 
 ### Implementation
 
-`policy/lint.py` queries cascade_candidates and resolved_properties, joins them, and applies each smell detector. Results are returned as `LintWarning` objects and also emitted as log events at WARNING level via the `umwelt.policy` logger.
+`policy/lint.py` queries cascade_candidates and resolved_properties, joins them, and applies each smell detector. Results are returned as `LintWarning` objects. Logging/warning/raising behavior is controlled by `LintConfig` via the `lint_mode` parameter on `PolicyEngine`.
 
 ---
 

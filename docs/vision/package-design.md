@@ -96,14 +96,14 @@ umwelt/                                      # repository / PyPI package root
         │   └── materialize.py               # materialize() at 3 levels + render_yaml()
         │
         ├── policy/                          # consumer-facing PolicyEngine
-        │   ├── __init__.py                  # exports: PolicyEngine, Candidate, TraceResult, LintWarning
-        │   ├── engine.py                    # PolicyEngine class — constructors, queries, COW extend
+        │   ├── __init__.py                  # exports: PolicyEngine, Candidate, TraceResult, LintWarning, LintConfig
+        │   ├── engine.py                    # PolicyEngine class — constructors, queries, COW extend, lint_mode
         │   ├── queries.py                   # resolve, trace, select — pure SQL query layer
-        │   ├── lint.py                      # 5 smell detectors (narrow_win, shadowed_rule, etc.)
+        │   ├── lint.py                      # 12 smell detectors, LintConfig, process_lint_results
         │   └── projections.py               # typed projection views + compilation_meta
         │
         ├── validate.py                      # runs registered validators over a parsed View
-        ├── cli.py                           # umwelt parse | inspect | compile | dry-run | ratchet | check | diff
+        ├── cli.py                           # umwelt parse | inspect | compile | dry-run | check | diff | materialize (--lint flag on check/dry-run/compile)
         │
         # ─── utilities ─────────────────────────────────────────────
         ├── inspect_util.py                  # umwelt inspect implementation

@@ -239,7 +239,7 @@ engine.resolve(type="tool", id="Bash", property="visible")  # → "false"
 trace = engine.trace(type="tool", id="Bash", property="visible")
 
 # Are there policy smells?
-warnings = engine.lint()  # narrow_win, shadowed_rule, conflicting_intent, ...
+warnings = engine.lint()  # 12 detectors: narrow_win, source_order_dependence, cross_axis_dominance, ...
 
 # Enforce a constraint
 engine.require(type="tool", id="Bash", visible="false")  # raises PolicyDenied on mismatch

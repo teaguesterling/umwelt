@@ -159,15 +159,89 @@ for w in warnings:
     print(f"[{w.severity}] {w.smell}: {w.description}")
 ```
 
-Five smell detectors:
+Twelve smell detectors across four categories:
 
-| Smell | Severity | What it catches |
-|---|---|---|
-| `narrow_win` | warning | Winner beat runner-up by specificity margin of 1 — fragile |
-| `shadowed_rule` | info | A rule that never wins for any entity — dead code |
-| `conflicting_intent` | warning | Same specificity, opposite values — winner decided by source order alone |
-| `uncovered_entity` | info | An entity with no resolved properties — nothing matches it |
-| `specificity_escalation` | warning | 3+ specificity levels for one property — possible escalation war |
+| Smell | Category | Recommended Severity | What it catches |
+|---|---|---|---|
+| `narrow_win` | Specificity | warning | Winner beat runner-up by specificity margin of 1 — fragile |
+| `specificity_escalation` | Specificity | warning | 3+ specificity levels for one property — possible escalation war |
+| `source_order_dependence` | Specificity | warning | Same specificity, different values — resolved by source order (later rule wins) |
+| `specificity_tie` | Specificity | warning | Same specificity AND same rule_index, different values — nondeterministic |
+| `cross_axis_dominance` | Cross-axis | warning | Cross-axis rule beats a single-axis ID rule — may be surprising |
+| `cross_axis_tie` | Cross-axis | warning | Cross-axis rules from different qualifier axes compete |
+| `ceiling_ineffective` | Ceiling | notice | Higher-specificity `<=` ceiling tries to raise a lower-specificity ceiling — ineffective due to MIN semantics |
+| `ceiling_conflict` | Ceiling | notice | Competing `<=` ceiling values at same specificity — MIN wins regardless of order |
+| `uncovered_entity` | Coverage | notice | An entity with no resolved properties — nothing matches it |
+| `shadowed_rule` | Coverage | notice | A rule that never wins for any entity — dead code |
+| `fixed_override` | Enforcement | notice | A fixed constraint overrides a cascade-resolved value |
+| `unrealizable_altitude` | Enforcement | warning | A resolved property targets an altitude no registered compiler handles |
+
+`engine.lint()` always returns all warnings regardless of `lint_mode` — it's the "give me everything" path for programmatic inspection.
+
+### Compile-time lint with lint_mode
+
+For automatic lint-on-compile, pass `lint_mode` to any constructor:
+
+```python
+# String presets — set all smells to this tier
+engine = PolicyEngine(lint_mode="warn")       # emit UserWarning for every smell
+engine = PolicyEngine(lint_mode="error")      # raise PolicyLintError on any smell
+engine = PolicyEngine(lint_mode="notice")     # log via logging.info
+engine = PolicyEngine(lint_mode="off")        # silent (default)
+
+# Dict form — per-smell control
+engine = PolicyEngine(lint_mode={
+    "error": ["cross_axis_dominance", "specificity_tie"],
+    "warn": ["source_order_dependence", "narrow_win"],
+    "notice": ["ceiling_ineffective"],
+    "off": ["shadowed_rule"],
+    "default": "warn",
+})
+```
+
+All constructors accept `lint_mode`:
+
+```python
+PolicyEngine(lint_mode="warn")
+PolicyEngine.from_files(world=..., stylesheet=..., lint_mode="error")
+PolicyEngine.from_db(path, lint_mode="warn")
+```
+
+When `lint_mode` is `None` (the default), the `UMWELT_LINT` environment variable provides the default. Falls back to `"off"` if unset. Only string presets are supported via env var.
+
+**Severity tiers:**
+
+| Tier | Behavior |
+|---|---|
+| `off` | Suppressed entirely |
+| `notice` | Logged via `logging.info` — visible in `--verbose` / debug output |
+| `warn` | Emitted via `warnings.warn(UserWarning)` — visible by default |
+| `error` | Collected and raised as `PolicyLintError` — aborts compilation |
+
+**extend() inheritance:** A child engine inherits the parent's `lint_mode` unless overridden:
+
+```python
+base = PolicyEngine(lint_mode="error")
+# Inherits error mode:
+child = base.extend(entities=[...])
+# Override to off:
+relaxed = base.extend(entities=[...], lint_mode="off")
+```
+
+### LintConfig for programmatic use
+
+The `LintConfig` dataclass is available for consumers that want to process lint results manually:
+
+```python
+from umwelt.policy import LintConfig
+from umwelt.policy.lint import process_lint_results
+
+config = LintConfig.from_lint_mode("warn")
+# or: LintConfig.from_lint_mode({"error": ["narrow_win"], "default": "off"})
+
+warnings = engine.lint()
+kept = process_lint_results(warnings, config)  # logs/warns/raises per config
+```
 
 Lint is useful for policy authors debugging their stylesheets. Consumers can also use it to report warnings to users.
 
@@ -285,8 +359,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 | Level | What's logged |
 |---|---|
-| `INFO` | `compile` (source files, entity count), `resolve` (entity, property, value), `resolve_all`, `extend` |
-| `WARNING` | `require_denied` (entity, property, expected vs actual), lint warnings |
+| `INFO` | `compile` (source files, entity count), `resolve` (entity, property, value), `resolve_all`, `extend`, lint notices (when `lint_mode="notice"`) |
+| `WARNING` | `require_denied` (entity, property, expected vs actual) |
 | `DEBUG` | `trace` (entity, property, candidate count), vocabulary/projection skip reasons |
 
 All log entries include structured `extra` fields for machine consumption.
@@ -294,9 +368,10 @@ All log entries include structured `extra` fields for machine consumption.
 ## Error handling
 
 ```python
-from umwelt.errors import PolicyDenied, PolicyError, UmweltError
+from umwelt.errors import PolicyDenied, PolicyLintError, PolicyError, UmweltError
 
 # PolicyDenied — raised by require()
+# PolicyLintError — raised when lint smells fire at error severity
 # PolicyError — base class for all policy errors
 # UmweltError — base class for all umwelt errors
 ```
@@ -311,6 +386,18 @@ except PolicyDenied as e:
     e.property  # "visible"
     e.expected  # "false"
     e.actual    # "true"
+```
+
+`PolicyLintError` is raised when `lint_mode="error"` and smells are detected:
+
+```python
+try:
+    engine = PolicyEngine(lint_mode="error")
+    engine.add_entities([...])
+    engine.add_stylesheet(css)
+    engine.resolve(type="tool", id="Bash", property="allow")
+except PolicyLintError as e:
+    e.warnings  # list[LintWarning] — the smells that triggered the error
 ```
 
 ## Worked example: a Kibitzer-style consumer
