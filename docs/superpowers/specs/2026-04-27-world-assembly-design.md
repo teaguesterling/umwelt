@@ -214,23 +214,34 @@ The assembly pipeline resolves navigation properties on enumerable entities *bef
 
 ---
 
-## 5. Assembly pipeline
+## 5. Assembly and materialization
 
-### 5.1 `assemble()` function
+### 5.1 Two-stage model: assemble then materialize
 
-The new entry point that builds on `load_world()` by adding generator navigation and merge. `load_world()` remains available for parse-only use (no discovery). Takes a world file and a policy stylesheet, returns an assembled world with all entities (explicit + discovered) and provenance.
+Assembly and materialization are distinct operations with different responsibilities and consumers:
+
+| Stage | Input | Output | What it does | Consumers |
+|---|---|---|---|---|
+| `load_world()` | `.world.yml` | `WorldFile` | Parse YAML | Assembly |
+| `assemble()` | `WorldFile` + stylesheet | `AssembledWorld` | Attach generators (Tier 1 probes), resolve navigation bounds | PolicyEngine, compilers, materialization |
+| `materialize()` | `AssembledWorld` + detail level | `MaterializedWorld` | Walk the tree at requested depth (Tiers 3-5), merge, snapshot | Humans, audit tools, snapshots |
+
+**Assembly** makes the tree **navigable** — generators are attached, anchor points are live, navigation bounds are resolved from policy. But nothing is enumerated. The `AssembledWorld` is a lazy object: you can call `exists()` or `children()` on its anchor points at any time.
+
+**Materialization** **walks** the tree eagerly at the requested detail level. It's one consumer of assembly, not the only one. PolicyEngine can work against an assembled world directly — explicit entities are known, and discovered entities are resolvable on demand via anchor points (predicate mode).
+
+### 5.2 `assemble()` function
 
 ```python
 from umwelt.world import assemble
 
-world = assemble(
+assembled = assemble(
     world_path="delegate.world.yml",
-    stylesheet_path="policy.umw",     # optional: needed for navigation properties
-    detail=DetailLevel.FULL,           # controls navigation depth
+    stylesheet_path="policy.umw",     # optional: needed for navigation property resolution
 )
 ```
 
-### 5.2 Pipeline steps
+### 5.3 Assembly pipeline
 
 ```
 load_world()          Parse YAML → WorldFile (explicit entities, projections)
@@ -239,8 +250,30 @@ phase_1_compile()     Compile policy against explicit entities only
         ↓
 resolve_bounds()      Resolve include-patterns/exclude-patterns on enumerable entities
         ↓
-navigate()            For each enumerable entity at requested depth:
-                        generator.attach(entity) → AnchorPoint
+attach()              For each enumerable entity:
+                        generator.attach(entity) → AnchorPoint | None
+                        Store successful anchor points (live, navigable)
+                        Warnings for failed attaches
+        ↓
+validate()            Run vocabulary validation
+        ↓
+AssembledWorld        Explicit entities + live anchor points, ready to navigate
+```
+
+Assembly does NOT call `children()` or `exists()`. It probes (Tier 1) only. The tree is navigable after assembly; materialization or direct API calls navigate it.
+
+### 5.4 Materialization pipeline
+
+```python
+from umwelt.world import materialize
+
+snapshot = materialize(assembled, detail=DetailLevel.FULL)
+```
+
+```
+AssembledWorld        Explicit entities + live anchor points
+        ↓
+navigate()            For each anchor point at requested depth:
                         generator.children(point, depth, include, exclude)
                         Tag results with provenance=DISCOVERED
         ↓
@@ -248,37 +281,36 @@ merge()               Combine explicit + discovered. Explicit wins on (type, id)
         ↓
 phase_2_compile()     Re-resolve policy against full entity set (via engine.extend())
         ↓
-validate()            Run vocabulary validation on assembled world
-        ↓
-AssembledWorld        All entities, provenance tagged, policy resolved
+MaterializedWorld     All entities, provenance tagged, concrete snapshot
 ```
 
-### 5.3 `AssembledWorld` type
+### 5.5 `AssembledWorld` type
 
 ```python
 @dataclass(frozen=True)
 class AssembledWorld:
     world_file: WorldFile                   # the original parse result
-    entities: tuple[DeclaredEntity, ...]    # explicit + discovered, merged
-    anchor_points: tuple[AnchorPoint, ...]  # successful attach results
+    entities: tuple[DeclaredEntity, ...]    # explicit entities only
+    anchor_points: tuple[AnchorPoint, ...]  # live — generators attached, ready to navigate
     projections: tuple[Projection, ...]     # from world file
     warnings: tuple[WorldWarning, ...]      # parse + validation + attach failures
+    engine: PolicyEngine | None             # phase 1 engine (explicit entities + resolved bounds)
 ```
 
-`AssembledWorld` wraps `WorldFile` (the pure parse result) and adds:
-- `anchor_points` — the attached generators, available for targeted `exists()` probes later
-- `entities` — the merged entity set with provenance tags
-- `warnings` — accumulated from all pipeline stages
+`AssembledWorld` wraps `WorldFile` and adds:
+- `anchor_points` — live handles for on-demand navigation (`exists()`, `children()`)
+- `engine` — the phase 1 PolicyEngine with resolved navigation properties, available for direct queries against explicit entities
+- `entities` — explicit entities only (discovered entities come from materialization or direct navigation)
 
-### 5.4 Navigation depth by detail level
+### 5.6 Navigation depth by detail level
 
-| Detail level | Generator calls | Result |
+| Detail level | Generator calls (during materialization) | Result |
 |---|---|---|
-| SUMMARY | `attach()` only | AnchorPoint metadata (counts, reachability). No children enumerated. |
+| SUMMARY | None (attach already done during assembly) | AnchorPoint metadata (counts, reachability). No children enumerated. |
 | OUTLINE | `children(depth=1)` | Immediate children with type + id + classes. No attributes. |
 | FULL | `children(depth=-1)` | Full recursive tree with all attributes. |
 
-### 5.5 Merge semantics
+### 5.7 Merge semantics (during materialization)
 
 When explicit and discovered entities share the same `(type, id)`:
 
@@ -288,15 +320,15 @@ When explicit and discovered entities share the same `(type, id)`:
 
 This matches the existing merge pattern in `parser.py` where explicit entities override shorthands.
 
-### 5.6 Error handling
+### 5.8 Error handling
 
-| Condition | Behavior |
-|---|---|
-| Entity type has no generator | Skip silently (not enumerable, that's fine) |
-| `attach()` returns None | Warning: "source not found for mount#source" |
-| `attach()` raises | Warning: "generator error for mount#source: {message}" |
-| `children()` raises | Warning: "enumeration failed for mount#source: {message}" |
-| Unknown entity type in results | Warning via `validate_world()` (soft, existing behavior) |
+| Condition | Stage | Behavior |
+|---|---|---|
+| Entity type has no generator | Assembly | Skip silently (not enumerable) |
+| `attach()` returns None | Assembly | Warning: "source not found for mount#source" |
+| `attach()` raises | Assembly | Warning: "generator error for mount#source: {message}" |
+| `children()` raises | Materialization | Warning: "enumeration failed for mount#source: {message}" |
+| Unknown entity type in results | Materialization | Warning via `validate_world()` (soft) |
 
 Generator failures are always soft — they produce warnings, never errors. A world with a broken mount is still a valid world; it just has fewer entities than expected. This matches the forward-compatibility pattern throughout umwelt.
 
