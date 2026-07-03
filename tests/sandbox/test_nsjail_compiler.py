@@ -78,9 +78,20 @@ def test_network_deny_all_emits_clone_newnet():
     assert "clone_newnet: true" in output
 
 
-def test_network_no_deny_does_not_emit_clone_newnet():
+def test_network_deny_none_stays_isolated():
+    # Deny-by-default: a resolved `deny: "none"` must NOT open the network.
+    # Only an explicit positive `allow: true` opens egress. This closes the
+    # isolation-bypass (GHSA-8fg4-2x93-4q77) where a broad `deny: "*"` base was
+    # loosened by a more-specific `deny: "none"`.
     rv = ResolvedView()
     rv.add("world", NetworkEntity(), {"deny": "none"})
+    output = NsjailCompiler().compile(rv)
+    assert "clone_newnet: true" in output
+
+
+def test_network_explicit_allow_opens_egress():
+    rv = ResolvedView()
+    rv.add("world", NetworkEntity(), {"allow": "true"})
     output = NsjailCompiler().compile(rv)
     assert "clone_newnet" not in output
 

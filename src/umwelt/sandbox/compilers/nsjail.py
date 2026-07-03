@@ -34,7 +34,9 @@ class NsjailConfig:
     name: str = "umwelt-sandbox"
     hostname: str = "umwelt"
     time_limit: int | None = None
-    clone_newnet: bool = False
+    # Deny-by-default: the jail is network-isolated unless a policy explicitly
+    # opens egress. Absence of any network rule => isolated (fail-closed).
+    clone_newnet: bool = True
     rlimit_as: int | None = None
     rlimit_cpu: int | None = None
     rlimit_nofile: int | None = None
@@ -87,7 +89,11 @@ class NsjailCompiler:
         root: str,
     ) -> None:
         path = getattr(entity, "path", "")
-        editable = props.get("editable", "false").lower() == "true"
+        # A file the policy marks invisible must not be exposed inside the jail
+        # at all — not even read-only. Absence of a `visible` rule => visible.
+        if props.get("visible", "true").strip().lower() == "false":
+            return
+        editable = props.get("editable", "false").strip().lower() == "true"
         dst = path if path.startswith("/") else f"{root}/{path}"
         src = str(getattr(entity, "abs_path", path))
         cfg.mounts.append({
@@ -151,8 +157,17 @@ class NsjailCompiler:
         entity: Any,
         props: dict[str, str],
     ) -> None:
-        if props.get("deny", "") == "*":
-            cfg.clone_newnet = True
+        # Deny-by-default (security-critical): the jail is network-isolated
+        # (cfg.clone_newnet starts True) and is opened ONLY by an explicit,
+        # positive `allow: true`. A `deny` value is never allowed to *open* the
+        # network — in particular `deny: "none"` does NOT grant egress. This
+        # closes the isolation-bypass where a broad `deny: "*"` base was loosened
+        # by a more-specific `deny: "none"`: absent an explicit allow, the jail
+        # stays isolated regardless of how `deny` resolves. clone_newnet is
+        # all-or-nothing, so finer-grained deny patterns cannot open it either.
+        allow = props.get("allow", "").strip().lower()
+        if allow == "true":
+            cfg.clone_newnet = False
 
     def _compile_env(
         self,

@@ -1,6 +1,8 @@
 name: "umwelt-sandbox"
 hostname: "umwelt"
 
+clone_newnet: true
+
 mount {
   src: "/bin"
   dst: "/bin"
