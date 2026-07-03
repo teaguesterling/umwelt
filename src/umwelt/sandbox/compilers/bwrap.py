@@ -70,6 +70,9 @@ class BwrapCompiler:
         binds: list[tuple[str, str, str]] = []    # (flag, src, dst)
         tmpfs_flags: list[tuple[str, ...]] = []
         unshare_flags: list[str] = []
+        # Deny-by-default: the jail is network-isolated (--unshare-net) unless a
+        # policy carries an explicit positive `network { allow: true }`.
+        network_allowed = False
 
         for entity, props in view.entries("world"):
             entity_type = type(entity).__name__
@@ -80,7 +83,8 @@ class BwrapCompiler:
             elif entity_type == "ResourceEntity":
                 self._collect_resource(result, tmpfs_flags, entity, props)
             elif entity_type == "NetworkEntity":
-                self._collect_network(unshare_flags, entity, props)
+                if self._network_allows(props):
+                    network_allowed = True
             elif entity_type == "EnvEntity":
                 self._collect_env(env_setenvs, entity, props)
             elif entity_type == "ExecEntity":
@@ -103,6 +107,8 @@ class BwrapCompiler:
         for parts in tmpfs_flags:
             result.argv.extend(parts)
 
+        if not network_allowed:
+            unshare_flags.append("--unshare-net")
         result.argv.extend(unshare_flags)
 
         return result
@@ -115,7 +121,11 @@ class BwrapCompiler:
         root: str,
     ) -> None:
         path = getattr(entity, "path", "")
-        editable = props.get("editable", "false").lower() == "true"
+        # A file the policy marks invisible must not be exposed inside the jail
+        # at all — not even read-only. Absence of a `visible` rule => visible.
+        if props.get("visible", "true").strip().lower() == "false":
+            return
+        editable = props.get("editable", "false").strip().lower() == "true"
         dst = path if path.startswith("/") else f"{root}/{path}"
         src = str(getattr(entity, "abs_path", path))
         flag = "--bind" if editable else "--ro-bind"
@@ -160,14 +170,15 @@ class BwrapCompiler:
         if props.get("tmpfs"):
             tmpfs_flags.append(("--tmpfs", "/tmp", f"--size={parse_size_for_tmpfs(props['tmpfs'])}"))
 
-    def _collect_network(
-        self,
-        unshare_flags: list[str],
-        entity: Any,
-        props: dict[str, str],
-    ) -> None:
-        if props.get("deny", "") == "*":
-            unshare_flags.append("--unshare-net")
+    def _network_allows(self, props: dict[str, str]) -> bool:
+        """True only for an explicit positive `allow: true`.
+
+        A `deny` value never opens the network (deny-by-default); in particular
+        `deny: "none"` does not grant egress. This closes the isolation-bypass
+        where a broad `deny: "*"` base was loosened by a more-specific
+        `deny: "none"`: absent an explicit allow, the jail stays isolated.
+        """
+        return props.get("allow", "").strip().lower() == "true"
 
     def _collect_env(
         self,

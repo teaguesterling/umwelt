@@ -17,3 +17,4 @@
 --bind
 /workspace/hello.txt
 /workspace/hello.txt
+--unshare-net

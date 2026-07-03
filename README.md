@@ -64,9 +64,11 @@ file[path="src/main.py"] { editable: true; }
 Build up from there:
 
 ```css
-/* Multiple files with cascade — later rules override earlier ones */
+/* Multiple files with cascade — the MOST SPECIFIC rule wins for a given
+   property; document order only breaks ties between equally specific rules.
+   (So the narrower src/auth/ rule below wins over the broader src/ rule.) */
 file[path^="src/"]      { editable: false; }   /* everything read-only */
-file[path^="src/auth/"] { editable: true; }    /* except auth */
+file[path^="src/auth/"] { editable: true; }    /* except auth (more specific) */
 
 /* Tool restrictions */
 tool[name="Read"] { allow: true; }
@@ -149,6 +151,28 @@ See [How umwelt Works](docs/guide/how-it-works.md) for the full architectural pi
 - **Compiler `**options`** — `compile()` accepts caller context (`workspace_root`, `mode`, etc.)
 - **Shared event schema** — common observation properties for audit/monitoring plugins
 - **885 tests**, mypy strict, ruff clean
+
+## Security notes
+
+- **Network egress is deny-by-default at the OS altitude.** The nsjail compiler
+  isolates the jail's network (`clone_newnet`) unless a policy carries an
+  explicit positive `network { allow: true }`. A `deny` value never *opens* the
+  network — in particular `deny: "none"` does not grant egress — and a policy
+  with no `network` rule at all is isolated.
+- **File visibility is honoured at the OS altitude.** A file resolved to
+  `visible: false` is not mounted into the jail (previously only `editable` was
+  consulted).
+- **Permission resolution is by specificity, not restrictiveness.** For boolean
+  permissions (`editable`/`visible`/`allow`) the most-specific rule wins, so a
+  more-specific rule can *loosen* a broader one. This makes the "deny broadly,
+  allow a narrower subset" idiom work (including mode-gated exceptions such as
+  `mode#review tool { allow: false }` + `mode#review tool[name="Read"] { allow: true }`),
+  but it also means an authoritative deny is not automatically un-overridable
+  by a more-specific rule. The intended mechanism for pinning a safety-critical
+  property is a **fixed constraint** (post-cascade clamp) rather than an ordinary
+  cascade rule; extending the clamp's coverage across every enforcement path is
+  tracked upstream. Do not rely on cascade ordering alone as a trust boundary
+  between authoritative and less-trusted policy layers.
 
 ## The ecosystem
 

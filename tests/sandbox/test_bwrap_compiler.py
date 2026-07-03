@@ -164,7 +164,9 @@ class TestBwrapResourceLimits:
         rv = ResolvedView()
         rv.add("capability", ToolEntity(name="Bash"), {"allow": "false"})
         result = BwrapCompiler().compile_full(rv, include_system_mounts=False)
-        assert result.argv == ["--clearenv"]  # only the default clearenv
+        # Tools produce no bwrap argv; network is deny-by-default (isolated)
+        # since no explicit `network { allow: true }` is present.
+        assert result.argv == ["--clearenv", "--unshare-net"]
         assert result.wrapper == []
 
     def test_full_worked_example(self, monkeypatch):

@@ -15,7 +15,8 @@
     "/lib64",
     "--ro-bind",
     "/sbin",
-    "/sbin"
+    "/sbin",
+    "--unshare-net"
   ],
   "wrapper": []
 }
